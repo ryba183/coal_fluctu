@@ -71,17 +71,22 @@ int main(){
 
   opts_init.dt=1;
   opts_init.sstp_coal = 1; 
+  opts_init.sstp_cond = 1; 
   opts_init.kernel = kernel_t::hall;
   opts_init.terminal_velocity = vt_t::beard77fast;
   opts_init.dx = 1e-2;
   opts_init.dy = 1e-2;
   opts_init.dz = 1e-2; 
 
+  opts_init.sedi_switch=0;
+  opts_init.src_switch=0;
+  opts_init.chem_switch=0;
+
 //  opts_init.dx = 1;
 //  opts_init.dy = 1;
 //  opts_init.dz = 1; 
 
-  const int nx = 1000;
+  const int nx = 1e2;
 
   opts_init.nx = nx; 
   opts_init.ny = 1; 
@@ -97,15 +102,15 @@ int main(){
   opts_init.sd_const_multi = 1;
   opts_init.n_sd_max = 60e6;
 
-  std::array<float, 60> rad_bins;
-  std::array<float, 60> res_bins_pre;
-  std::array<float, 60> res_bins_post;
+  std::array<float, 51> rad_bins;
+  std::array<float, 51> res_bins_pre;
+  std::array<float, 51> res_bins_post;
   std::iota(rad_bins.begin(), rad_bins.end(), 0);
 
   for (auto &rad_bin : rad_bins)
   {
-    rad_bin = rad_bin * 50e-6 / rad_bins.size() + 10e-6; // range from 10 to 60 microns
-//    std::cout << rad_bin << " ";
+    rad_bin = rad_bin * 50e-6 / (rad_bins.size() -1) + 10e-6; // range from 10 to 60 microns
+    std::cout << rad_bin << " ";
   }
 
 //  for (auto rad_bin : rad_bins)
@@ -125,7 +130,7 @@ int main(){
 
   particles_proto_t<float> *prtcls;
      prtcls = factory<float>(
-        (backend_t)OpenMP, 
+        (backend_t)CUDA, 
         opts_init
       );
 
@@ -251,7 +256,7 @@ int main(){
     res_bins_post[i]= mean * rho_stp_f / 1e6 // now its number per cm^3
                      * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
                      // / (rad_bins[i+1] - rad_bins[i]); // to get density function
-    of_mass_dens << rad_bins[i] * 1e6 << " " << res_bins_pre[i] << " " << res_bins_post[i] << std::endl; 
+    of_mass_dens << rad * 1e6 << " " << res_bins_pre[i] << " " << res_bins_post[i] << std::endl; 
 
   }
 
