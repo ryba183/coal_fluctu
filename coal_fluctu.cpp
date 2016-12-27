@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <libcloudph++/lgrngn/factory.hpp>
 #include <boost/assign/ptr_map_inserter.hpp>
 #include <stdio.h>
@@ -62,9 +63,11 @@ void two_step(particles_proto_t<float> *prtcls,
 
 
 int main(){
+  std::ofstream of_mass_dens("mass_dens.dat");
+
   opts_init_t<float> opts_init;
 
-  int sim_time=500;//2500; // 2500 steps
+  int sim_time=2500;//2500; // 2500 steps
 
   opts_init.dt=sim_time;
   opts_init.sstp_coal = sim_time; 
@@ -78,7 +81,9 @@ int main(){
 //  opts_init.dy = 1;
 //  opts_init.dz = 1; 
 
-  opts_init.nx = 1; 
+  const int nx = 10;
+
+  opts_init.nx = nx; 
   opts_init.ny = 1; 
   opts_init.nz = 1; 
   opts_init.x1 = opts_init.nx * opts_init.dx;
@@ -86,10 +91,27 @@ int main(){
   opts_init.z1 = opts_init.nz * opts_init.dz;
   opts_init.rng_seed = time(NULL);
 
+  int n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
+
 //  opts_init.sd_conc = 100;
   opts_init.sd_const_multi = 1;
   opts_init.n_sd_max = 60e6;
 
+  std::array<float, 100> rad_bins;
+  std::array<float, 100> res_bins_pre;
+  std::array<float, 100> res_bins_post;
+  std::iota(rad_bins.begin(), rad_bins.end(), 0);
+
+  for (auto &rad_bin : rad_bins)
+  {
+    rad_bin = rad_bin * 50e-6 / rad_bins.size() + 10e-6; // range from 10 to 60 microns
+//    std::cout << rad_bin << " ";
+  }
+
+//  for (auto rad_bin : rad_bins)
+  //  std::cout << rad_bin;
+
+/*
   boost::assign::ptr_map_insert<
     log_dry_radii<float> // value type
   >(  
@@ -97,6 +119,9 @@ int main(){
   )(  
     0. // key
   ); 
+*/
+
+  opts_init.dry_sizes[0] = {{17e-6, 20}, {21.4e-6, 10}};
 
   particles_proto_t<float> *prtcls;
      prtcls = factory<float>(
@@ -108,14 +133,22 @@ int main(){
   const float rho_stp_f = (rho_stp<float>() / si::kilograms * si::cubic_metres);
   std::cout << "rho stp f = " << rho_stp_f << std::endl;
 
-  float pth[] = {300.};
-  float prhod[] = {rho_stp_f};
-  float prv[] = {.01};
-  long int strides[] = {sizeof(float)};
+  std::array<float, nx> pth;
+  std::array<float, nx> prhod;
+  std::array<float, nx> prv;
 
-  arrinfo_t<float> th(pth, strides);
-  arrinfo_t<float> rhod(prhod, strides);
-  arrinfo_t<float> rv(prv, strides);
+  pth.fill(300.);
+  prhod.fill(rho_stp_f);
+  prv.fill(.01);
+
+// = {300.};
+//  float prhod[] = {rho_stp_f};
+//  float prv[] = {.01};
+  long int strides[] = {/*sizeof(float)*/ 1, 1, 1};
+
+  arrinfo_t<float> th(pth.data(), strides);
+  arrinfo_t<float> rhod(prhod.data(), strides);
+  arrinfo_t<float> rv(prv.data(), strides);
 
   prtcls->init(th,rv,rhod);
 
@@ -142,7 +175,35 @@ int main(){
   prtcls->diag_dry_mom(1);
   std::cout << "mean dry radius: " << prtcls->outbuf()[0] / drop_no << std::endl;
 
-  prtcls->step_sync(opts,th,rv,rhod);
+  prtcls->diag_all();
+  prtcls->diag_wet_mom(3);
+  std::cout << "3rd wet mom: " << prtcls->outbuf()[0] << std::endl;
+
+  // get mass density function
+  for (int i=0; i <rad_bins.size() -1; ++i)
+  {
+//    prtcls->diag_all();
+  //  prtcls->diag_wet_mass_dens( rad_bins[i], 0.62 ); //sigma0 = 0.62 like in Shima (2009)
+    prtcls->diag_wet_rng(rad_bins[i], rad_bins[i+1]);
+    prtcls->diag_wet_mom(0);
+    float rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
+    float mean = 0;
+    auto buf = prtcls->outbuf();
+    std::cout << "radius (" << rad_bins[i] << ", " << rad_bins[i+1] << "): ";
+    for(int c=0; c < n_cell; ++c)
+    {
+      std::cout << buf[c] << " ";
+      mean += buf[c];
+    }
+    std::cout << std::endl;
+    mean /= n_cell;
+    
+    res_bins_pre[i]= mean * rho_stp_f / 1e6 // now its number per cm^3
+                     * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
+                     // / (rad_bins[i+1] - rad_bins[i]); // to get density function
+  }
+
+  prtcls->step_sync(opts,th,rv);//,rhod);
   cout << prtcls->step_async(opts) << endl;
 
   std::cout << "po symulacji:" << std::endl;
@@ -162,6 +223,35 @@ int main(){
   prtcls->diag_all();
   prtcls->diag_dry_mom(1);
   std::cout << "mean dry radius: " << prtcls->outbuf()[0] / drop_no << std::endl;
+
+  prtcls->diag_all();
+  prtcls->diag_wet_mom(3);
+  std::cout << "3rd wet mom: " << prtcls->outbuf()[0] << std::endl;
+
+  // get mass density function
+  for (int i=0; i <rad_bins.size() -1; ++i)
+  {
+//    prtcls->diag_all();
+  //  prtcls->diag_wet_mass_dens( rad_bins[i], 0.62 ); //sigma0 = 0.62 like in Shima (2009)
+    prtcls->diag_wet_rng(rad_bins[i], rad_bins[i+1]);
+    prtcls->diag_wet_mom(0);
+    float rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
+    float mean = 0;
+    auto buf = prtcls->outbuf();
+    for(int c=0; c < n_cell; ++c)
+    {
+      std::cout << buf[c] << " ";
+      mean += buf[c];
+    }
+    mean /= n_cell;
+    
+    res_bins_post[i]= mean * rho_stp_f / 1e6 // now its number per cm^3
+                     * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
+                     // / (rad_bins[i+1] - rad_bins[i]); // to get density function
+    of_mass_dens << rad_bins[i] * 1e6 << " " << res_bins_pre[i] << " " << res_bins_post[i] << std::endl; 
+
+  }
+
 
 //  debug::print(prtcls->impl->n);
 
