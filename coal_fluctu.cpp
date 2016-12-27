@@ -53,12 +53,12 @@ struct log_dry_radii : public libcloudphxx::common::unary_function<T>
 
 void two_step(particles_proto_t<float> *prtcls, 
              arrinfo_t<float> th,
-             arrinfo_t<float> rhod,
+     //        arrinfo_t<float> rhod,
              arrinfo_t<float> rv,
              opts_t<float> opts)
 {
-    prtcls->step_sync(opts,th,rv,rhod);
-    cout << prtcls->step_async(opts) << endl;
+    prtcls->step_sync(opts,th,rv);//,rhod);
+    prtcls->step_async(opts);
 }
 
 
@@ -69,8 +69,8 @@ int main(){
 
   int sim_time=2500;//2500; // 2500 steps
 
-  opts_init.dt=sim_time;
-  opts_init.sstp_coal = sim_time; 
+  opts_init.dt=1;
+  opts_init.sstp_coal = 1; 
   opts_init.kernel = kernel_t::hall;
   opts_init.terminal_velocity = vt_t::beard77fast;
   opts_init.dx = 1e-2;
@@ -81,7 +81,7 @@ int main(){
 //  opts_init.dy = 1;
 //  opts_init.dz = 1; 
 
-  const int nx = 4;
+  const int nx = 1000;
 
   opts_init.nx = nx; 
   opts_init.ny = 1; 
@@ -97,9 +97,9 @@ int main(){
   opts_init.sd_const_multi = 1;
   opts_init.n_sd_max = 60e6;
 
-  std::array<float, 100> rad_bins;
-  std::array<float, 100> res_bins_pre;
-  std::array<float, 100> res_bins_post;
+  std::array<float, 60> rad_bins;
+  std::array<float, 60> res_bins_pre;
+  std::array<float, 60> res_bins_post;
   std::iota(rad_bins.begin(), rad_bins.end(), 0);
 
   for (auto &rad_bin : rad_bins)
@@ -203,8 +203,11 @@ int main(){
                      // / (rad_bins[i+1] - rad_bins[i]); // to get density function
   }
 
-  prtcls->step_sync(opts,th,rv);//,rhod);
-  cout << prtcls->step_async(opts) << endl;
+//  prtcls->step_sync(opts,th,rv);//,rhod);
+//  cout << prtcls->step_async(opts) << endl;
+
+  for(int i=0; i<sim_time; ++i)
+    two_step(prtcls,th,rv,opts);
 
   std::cout << "po symulacji:" << std::endl;
 
