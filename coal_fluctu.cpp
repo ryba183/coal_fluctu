@@ -81,7 +81,7 @@ int main(){
 //  opts_init.dy = 1;
 //  opts_init.dz = 1; 
 
-  const int nx = 10;
+  const int nx = 4;
 
   opts_init.nx = nx; 
   opts_init.ny = 1; 
@@ -189,13 +189,13 @@ int main(){
     float rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
     float mean = 0;
     auto buf = prtcls->outbuf();
-    std::cout << "radius (" << rad_bins[i] << ", " << rad_bins[i+1] << "): ";
+//    std::cout << "radius (" << rad_bins[i] << ", " << rad_bins[i+1] << "): ";
     for(int c=0; c < n_cell; ++c)
     {
-      std::cout << buf[c] << " ";
+//      std::cout << buf[c] << " ";
       mean += buf[c];
     }
-    std::cout << std::endl;
+//    std::cout << std::endl;
     mean /= n_cell;
     
     res_bins_pre[i]= mean * rho_stp_f / 1e6 // now its number per cm^3
@@ -240,7 +240,7 @@ int main(){
     auto buf = prtcls->outbuf();
     for(int c=0; c < n_cell; ++c)
     {
-      std::cout << buf[c] << " ";
+//      std::cout << buf[c] << " ";
       mean += buf[c];
     }
     mean /= n_cell;
