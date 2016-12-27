@@ -63,7 +63,9 @@ void two_step(particles_proto_t<float> *prtcls,
 
 
 int main(){
-  std::ofstream of_mass_dens("mass_dens.dat");
+printf("start\n");
+//  std::ofstream of_mass_dens("mass_dens.dat");
+printf("1\n");
 
   opts_init_t<float> opts_init;
 
@@ -86,10 +88,12 @@ int main(){
 //  opts_init.dy = 1;
 //  opts_init.dz = 1; 
 
-  const int nx = 1e2;
+  const int nx = 1e7;
+  const int ny = 1;
+  const int nz = 1;
 
   opts_init.nx = nx; 
-  opts_init.ny = 1; 
+  opts_init.ny = ny; 
   opts_init.nz = 1; 
   opts_init.x1 = opts_init.nx * opts_init.dx;
   opts_init.y1 = opts_init.ny * opts_init.dy;
@@ -100,7 +104,7 @@ int main(){
 
 //  opts_init.sd_conc = 100;
   opts_init.sd_const_multi = 1;
-  opts_init.n_sd_max = 60e6;
+  opts_init.n_sd_max = 30 * opts_init.nx * opts_init.ny * opts_init.nz;
 
   std::array<float, 51> rad_bins;
   std::array<float, 51> res_bins_pre;
@@ -126,11 +130,11 @@ int main(){
   ); 
 */
 
-  opts_init.dry_sizes[0] = {{17e-6, 20}, {21.4e-6, 10}};
+  opts_init.dry_sizes[0.] = {{17e-6, 20}, {21.4e-6, 10}};
 
   particles_proto_t<float> *prtcls;
      prtcls = factory<float>(
-        (backend_t)CUDA, 
+        (backend_t)multi_CUDA, 
         opts_init
       );
 
@@ -138,9 +142,12 @@ int main(){
   const float rho_stp_f = (rho_stp<float>() / si::kilograms * si::cubic_metres);
   std::cout << "rho stp f = " << rho_stp_f << std::endl;
 
-  std::array<float, nx> pth;
-  std::array<float, nx> prhod;
-  std::array<float, nx> prv;
+//  std::array<float, nx*ny*nz> pth;
+//  std::array<float, nx*ny*nz> prhod;
+//  std::array<float, nx*ny*nz> prv;
+  std::array<float, 1> pth;
+  std::array<float, 1> prhod;
+  std::array<float, 1> prv;
 
   pth.fill(300.);
   prhod.fill(rho_stp_f);
@@ -149,7 +156,8 @@ int main(){
 // = {300.};
 //  float prhod[] = {rho_stp_f};
 //  float prv[] = {.01};
-  long int strides[] = {/*sizeof(float)*/ 1, 1, 1};
+//  long int strides[] = {/*sizeof(float)*/ nz*ny, nz, 1};
+  long int strides[] = {/*sizeof(float)*/ 0, 0, 0};
 
   arrinfo_t<float> th(pth.data(), strides);
   arrinfo_t<float> rhod(prhod.data(), strides);
@@ -256,7 +264,7 @@ int main(){
     res_bins_post[i]= mean * rho_stp_f / 1e6 // now its number per cm^3
                      * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
                      // / (rad_bins[i+1] - rad_bins[i]); // to get density function
-    of_mass_dens << rad * 1e6 << " " << res_bins_pre[i] << " " << res_bins_post[i] << std::endl; 
+//    of_mass_dens << rad * 1e6 << " " << res_bins_pre[i] << " " << res_bins_post[i] << std::endl; 
 
   }
 
