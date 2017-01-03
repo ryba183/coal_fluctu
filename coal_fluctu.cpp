@@ -33,7 +33,7 @@ using namespace libcloudphxx::lgrngn;
 
 
 //globals
-std::array<float, 51> rad_bins;
+std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
 
@@ -68,7 +68,7 @@ void two_step(particles_proto_t<float> *prtcls,
 }
 
 
-void diag(particles_proto_t<float> *prtcls, std::array<float, 51> &res_bins)
+void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
 {
   prtcls->diag_sd_conc();
   std::cout << "sd conc: " << prtcls->outbuf()[0] << std::endl;
@@ -87,10 +87,15 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 51> &res_bins)
   prtcls->diag_dry_mom(1);
   std::cout << "mean dry radius: " << prtcls->outbuf()[0] / drop_no << std::endl;
 
+*/
   prtcls->diag_all();
   prtcls->diag_wet_mom(3);
-  std::cout << "3rd wet mom: " << prtcls->outbuf()[0] << std::endl;
-*/
+  float sum = 0;
+  auto out = prtcls->outbuf();
+  for(int c=0; c < n_cell; ++c)
+    sum += out[c];
+  std::cout << "3rd wet mom mean: " << sum / n_cell << std::endl;
+
   // get mass density function
   for (int i=0; i <rad_bins.size() -1; ++i)
   {
@@ -112,8 +117,10 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 51> &res_bins)
                      * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
                      // / (rad_bins[i+1] - rad_bins[i]); // to get density function
 //    of_size_spectr << rad * 1e6 << " " << res_bins_pre[i] << " " << res_bins_post[i] << std::endl; 
-
+std::cout << res_bins[i] << " ";
   }
+std::cout << std::endl;
+    std::cout << "res_bins sum (LWC?): " << std::accumulate(res_bins.begin(), res_bins.end(), 0.) << std::endl;
 }
 
 
@@ -124,24 +131,20 @@ int main(){
 
   opts_init_t<float> opts_init;
 
-  int sim_time=2500;//2500; // 2500 steps
+  int sim_time=2200;//2500; // 2500 steps
 
   opts_init.dt=1;
   opts_init.sstp_coal = 1; 
   opts_init.sstp_cond = 1; 
   opts_init.kernel = kernel_t::hall;
   opts_init.terminal_velocity = vt_t::beard77fast;
-  opts_init.dx = 10000e-2;
+  opts_init.dx = 1e-2;
   opts_init.dy = 1e-2;
   opts_init.dz = 1e-2; 
 
   opts_init.sedi_switch=0;
   opts_init.src_switch=0;
   opts_init.chem_switch=0;
-
-//  opts_init.dx = 1;
-//  opts_init.dy = 1;
-//  opts_init.dz = 1; 
 
   const int nx = 1e0;
   const int ny = 1;
@@ -160,14 +163,15 @@ int main(){
 //  opts_init.sd_conc = 100;
   opts_init.sd_const_multi = 1;
   opts_init.n_sd_max = 30e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
+std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl; 
 
-  std::array<float, 51> res_bins_pre;
-  std::array<float, 51> res_bins_post;
+  std::array<float, 1201> res_bins_pre;
+  std::array<float, 1201> res_bins_post;
   std::iota(rad_bins.begin(), rad_bins.end(), 0);
 
   for (auto &rad_bin : rad_bins)
   {
-    rad_bin = rad_bin * 50e-6 / (rad_bins.size() -1) + 10e-6; // range from 10 to 60 microns
+    rad_bin = rad_bin * 1e-6 + 10e-6; // range from 10 to 60 microns
     std::cout << rad_bin << " ";
   }
 
@@ -188,7 +192,7 @@ int main(){
 
   particles_proto_t<float> *prtcls;
      prtcls = factory<float>(
-        (backend_t)OpenMP, 
+        (backend_t)serial, 
         opts_init
       );
 
@@ -226,20 +230,25 @@ int main(){
   opts.coal = 1;
   opts.rcyc = 0;
 
+  std::fill(res_bins_pre.begin(), res_bins_pre.end(), 0.);
+  std::fill(res_bins_post.begin(), res_bins_post.end(), 0.);
   diag(prtcls, res_bins_pre);
 
 //  prtcls->step_sync(opts,th,rv);//,rhod);
 //  cout << prtcls->step_async(opts) << endl;
 
+  float max_rw = 0.;
   for(int i=0; i<sim_time; ++i)
   {
     two_step(prtcls,th,rv,opts);
+
     // get std dev of max rw
     prtcls->diag_max_rw();
     auto arr = prtcls->outbuf();
     float mean = 0;
     for(int j=0; j<n_cell; ++j)
     {
+      if(arr[j] > max_rw) max_rw = arr[j];
       mean += std::pow(arr[j], 3); // mass std dev...
     }
     mean /= float(n_cell);
@@ -248,10 +257,22 @@ int main(){
       std_dev += std::pow(std::pow(arr[j], 3) / mean - 1, 2);
     std_dev = std::sqrt(std_dev / n_cell);
 
+    prtcls->diag_sd_conc();
+    arr = prtcls->outbuf();
+    mean = 0;
+    for(int j=0; j<n_cell; ++j)
+    {
+      mean += arr[j]; 
+    }
+    mean /= float(n_cell);
+
+printf("\r%3d%%: rw_max %lf mean_sd_conc %lf", int(float(i) / sim_time * 100), max_rw, mean);
+std::cout << std::flush;
+
     of_max_rw_std_dev << i * opts_init.dt << " " << std_dev << std::endl;
   }
 
-  std::cout << "po symulacji:" << std::endl;
+  std::cout << std::endl << "po symulacji, max_rw: " << max_rw << std::endl;
 
   diag(prtcls, res_bins_post);
 
