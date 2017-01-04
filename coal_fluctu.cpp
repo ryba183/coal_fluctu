@@ -22,13 +22,16 @@ using namespace libcloudphxx::lgrngn;
 
   //aerosol bimodal lognormal dist. 
   const quantity<si::length, float>
-    mean_rd1 = float(17e-6) * si::metres,
+    mean_rd1 = float(19.5e-6) * si::metres,
+
     mean_rd2 = float(.15e-6 / 2) * si::metres;
   const quantity<si::dimensionless, float>
     sdev_rd1 = float(1.4),
+
     sdev_rd2 = float(1.6);
   const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float>
-    n1_stp = float(10e6) / si::cubic_metres,
+    n1_stp = float(200e6) / si::cubic_metres,
+
     n2_stp = float(40e6) / si::cubic_metres;
 
 
@@ -131,14 +134,14 @@ int main(){
 
   opts_init_t<float> opts_init;
 
-  int sim_time=2200;//2500; // 2500 steps
+  int sim_time=30;//2500; // 2500 steps
 
   opts_init.dt=1;
-  opts_init.sstp_coal = 1; 
+  opts_init.sstp_coal = 10; 
   opts_init.sstp_cond = 1; 
   opts_init.kernel = kernel_t::hall;
   opts_init.terminal_velocity = vt_t::beard77fast;
-  opts_init.dx = 1e-2;
+  opts_init.dx = 100000e-2;
   opts_init.dy = 1e-2;
   opts_init.dz = 1e-2; 
 
@@ -146,7 +149,7 @@ int main(){
   opts_init.src_switch=0;
   opts_init.chem_switch=0;
 
-  const int nx = 1e0;
+  const int nx = 1e4;
   const int ny = 1;
   const int nz = 1;
 
@@ -160,9 +163,10 @@ int main(){
 
   n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
 
-//  opts_init.sd_conc = 100;
-  opts_init.sd_const_multi = 1;
-  opts_init.n_sd_max = 30e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
+  opts_init.sd_conc = int(128);
+//  opts_init.sd_const_multi = 10;
+//  opts_init.n_sd_max = 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
+  opts_init.n_sd_max = 1e8;// 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
 std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl; 
 
   std::array<float, 1201> res_bins_pre;
@@ -178,7 +182,6 @@ std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl;
 //  for (auto rad_bin : rad_bins)
   //  std::cout << rad_bin;
 
-/*
   boost::assign::ptr_map_insert<
     log_dry_radii<float> // value type
   >(  
@@ -186,13 +189,12 @@ std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl;
   )(  
     0. // key
   ); 
-*/
 
-  opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
+//  opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
 
   particles_proto_t<float> *prtcls;
      prtcls = factory<float>(
-        (backend_t)serial, 
+        (backend_t)CUDA, 
         opts_init
       );
 
