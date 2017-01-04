@@ -26,7 +26,7 @@ def RMSD(a1, a2):
 
 #initial conditions, ca. 1g / m^3
 r_zero = 30.084e-6
-n_zero = 200e-6
+n_zero = pow(2,23)
 v_zero = spherevol(r_zero)
 
 #Golovin kernel parameter
