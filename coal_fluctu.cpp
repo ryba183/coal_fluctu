@@ -22,7 +22,7 @@ using namespace libcloudphxx::lgrngn;
 
   //aerosol bimodal lognormal dist. 
   const quantity<si::length, float>
-    mean_rd1 = float(19.5e-6) * si::metres,
+    mean_rd1 = float(15e-6) * si::metres,
 
     mean_rd2 = float(.15e-6 / 2) * si::metres;
   const quantity<si::dimensionless, float>
@@ -30,7 +30,7 @@ using namespace libcloudphxx::lgrngn;
 
     sdev_rd2 = float(1.6);
   const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float>
-    n1_stp = float(200e6) / si::cubic_metres,
+    n1_stp = float(142e6) / si::cubic_metres,
 
     n2_stp = float(40e6) / si::cubic_metres;
 
@@ -59,6 +59,19 @@ struct log_dry_radii : public libcloudphxx::common::unary_function<T>
   { return new log_dry_radii( *this ); }
 };  
 
+// aerosol distribution exponential in droplet volume as a function of ln(r)
+template <typename T>
+struct exp_dry_radii : public libcloudphxx::common::unary_function<T>
+{
+  T funval(const T lnrd) const
+  {   
+    T r = exp(lnrd);
+    return (n1_stp * si::cubic_metres) * 3. * pow(r,3) / pow(mean_rd1 / si::metres, 3) * exp( - pow(r/(mean_rd1 / si::metres), 3));
+  }   
+
+  exp_dry_radii *do_clone() const 
+  { return new exp_dry_radii( *this ); }
+};  
 
 void two_step(particles_proto_t<float> *prtcls, 
              arrinfo_t<float> th,
@@ -134,24 +147,29 @@ int main(){
 
   opts_init_t<float> opts_init;
 
-  int sim_time=30;//2500; // 2500 steps
+  int sim_time=500;//2500; // 2500 steps
 
   opts_init.dt=1;
-  opts_init.sstp_coal = 10; 
+  opts_init.sstp_coal = 1; 
   opts_init.sstp_cond = 1; 
   opts_init.kernel = kernel_t::hall;
   opts_init.terminal_velocity = vt_t::beard77fast;
-  opts_init.dx = 100000e-2;
-  opts_init.dy = 1e-2;
-  opts_init.dz = 1e-2; 
+  opts_init.dx = 7.24e4 /  (n1_stp * si::cubic_metres);
+  opts_init.dy = 1;
+  opts_init.dz = 1; 
 
   opts_init.sedi_switch=0;
   opts_init.src_switch=0;
   opts_init.chem_switch=0;
 
-  const int nx = 1e4;
+  const int nx = 1e2;
   const int ny = 1;
   const int nz = 1;
+
+  std::array<float, nx> init_cloud_mass;
+  std::array<float, nx> init_rain_mass;
+  std::array<float, nx> t10;
+  t10.fill(0.);
 
   opts_init.nx = nx; 
   opts_init.ny = ny; 
@@ -163,8 +181,8 @@ int main(){
 
   n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
 
-  opts_init.sd_conc = int(128);
-//  opts_init.sd_const_multi = 10;
+//  opts_init.sd_conc = int(128);
+  opts_init.sd_const_multi = 1;
 //  opts_init.n_sd_max = 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
   opts_init.n_sd_max = 1e8;// 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
 std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl; 
@@ -181,7 +199,7 @@ std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl;
 
 //  for (auto rad_bin : rad_bins)
   //  std::cout << rad_bin;
-
+/*
   boost::assign::ptr_map_insert<
     log_dry_radii<float> // value type
   >(  
@@ -189,7 +207,14 @@ std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl;
   )(  
     0. // key
   ); 
-
+*/
+  boost::assign::ptr_map_insert<
+    exp_dry_radii<float> // value type
+  >(  
+    opts_init.dry_distros // map
+  )(  
+    0. // key
+  ); 
 //  opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
 
   particles_proto_t<float> *prtcls;
@@ -239,6 +264,27 @@ std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl;
 //  prtcls->step_sync(opts,th,rv);//,rhod);
 //  cout << prtcls->step_async(opts) << endl;
 
+  prtcls->diag_wet_rng(0, 40e-6); // cloud water (like in Onishi)
+  prtcls->diag_wet_mom(3);
+  auto arr = prtcls->outbuf();
+  for(int j=0; j<n_cell; ++j)
+  {
+    init_cloud_mass[j] = arr[j];
+    std::cout << arr[j] << " ";
+  }
+  std::cout << std::endl;
+
+  prtcls->diag_wet_rng(40e-6, 1); // rain water (like in Onishi)
+  prtcls->diag_wet_mom(3);
+  arr = prtcls->outbuf();
+  for(int j=0; j<n_cell; ++j)
+  {
+    init_rain_mass[j] = arr[j];
+    std::cout << arr[j] << " ";
+  }
+  std::cout << std::endl;
+
+
   float max_rw = 0.;
   for(int i=0; i<sim_time; ++i)
   {
@@ -246,7 +292,7 @@ std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl;
 
     // get std dev of max rw
     prtcls->diag_max_rw();
-    auto arr = prtcls->outbuf();
+    arr = prtcls->outbuf();
     float mean = 0;
     for(int j=0; j<n_cell; ++j)
     {
@@ -272,11 +318,38 @@ printf("\r%3d%%: rw_max %lf mean_sd_conc %lf", int(float(i) / sim_time * 100), m
 std::cout << std::flush;
 
     of_max_rw_std_dev << i * opts_init.dt << " " << std_dev << std::endl;
+
+    // get t10 (time to conver 10% of cloud water into rain water)
+    prtcls->diag_wet_rng(40e-6, 1); // rain water (like in Onishi)
+    prtcls->diag_wet_mom(3);
+    arr = prtcls->outbuf();
+    for(int j=0; j<n_cell; ++j)
+    {
+      if(t10[j] == 0. && arr[j] >= init_cloud_mass[j] * .1)
+        t10[j] = i * opts_init.dt;
+    }
   }
 
   std::cout << std::endl << "po symulacji, max_rw: " << max_rw << std::endl;
 
   diag(prtcls, res_bins_post);
+
+  // calc and print out mean t10 and t10 std_dev
+  float mean = 0.;
+  for(int j=0; j<n_cell; ++j)
+  {
+    if(t10[j] == 0.)
+      std::cerr << "t10 == 0. !! too short simulation" << std::endl;
+    mean += t10[j];
+  }
+  mean/=n_cell;
+  float std_dev=0.;
+  for(int j=0; j<n_cell; ++j)
+    std_dev += pow(t10[j] - mean, 2);
+  std_dev /= n_cell;
+  std_dev = sqrt(std_dev);
+  std::cout << "mean(t10%) = " << mean << std::endl;
+  std::cout << "realtive std_dev(t10%) = " << std_dev / mean << std::endl;
 
 // output
   for (int i=0; i <rad_bins.size() -1; ++i)
