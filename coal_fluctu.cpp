@@ -147,14 +147,14 @@ int main(){
 
   opts_init_t<float> opts_init;
 
-  int sim_time=500;//2500; // 2500 steps
+  const int sim_time=500;//2500; // 2500 steps
 
   opts_init.dt=1;
   opts_init.sstp_coal = 1; 
   opts_init.sstp_cond = 1; 
-  opts_init.kernel = kernel_t::hall;
-  opts_init.terminal_velocity = vt_t::beard77fast;
-  opts_init.dx = 7.24e4 /  (n1_stp * si::cubic_metres);
+  opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
+  opts_init.terminal_velocity = vt_t::beard76;
+  opts_init.dx = 1.06e7 /  (n1_stp * si::cubic_metres);
   opts_init.dy = 1;
   opts_init.dz = 1; 
 
@@ -162,13 +162,14 @@ int main(){
   opts_init.src_switch=0;
   opts_init.chem_switch=0;
 
-  const int nx = 1e2;
+  const int nx = 5;
   const int ny = 1;
   const int nz = 1;
 
   std::array<float, nx> init_cloud_mass;
   std::array<float, nx> init_rain_mass;
   std::array<float, nx> t10;
+  std::array<std::array<float, nx>, sim_time> tau; // ratio of rain mass to LWC
   t10.fill(0.);
 
   opts_init.nx = nx; 
@@ -327,6 +328,7 @@ std::cout << std::flush;
     {
       if(t10[j] == 0. && arr[j] >= init_cloud_mass[j] * .1)
         t10[j] = i * opts_init.dt;
+      tau[i][j] = arr[j] / init_cloud_mass[j];
     }
   }
 
@@ -335,21 +337,37 @@ std::cout << std::flush;
   diag(prtcls, res_bins_post);
 
   // calc and print out mean t10 and t10 std_dev
-  float mean = 0.;
+  float mean_t10 = 0.;
   for(int j=0; j<n_cell; ++j)
   {
     if(t10[j] == 0.)
       std::cerr << "t10 == 0. !! too short simulation" << std::endl;
-    mean += t10[j];
+    mean_t10 += t10[j];
   }
-  mean/=n_cell;
+  mean_t10/=n_cell;
   float std_dev=0.;
   for(int j=0; j<n_cell; ++j)
-    std_dev += pow(t10[j] - mean, 2);
+    std_dev += pow(t10[j] - mean_t10, 2);
   std_dev /= n_cell;
   std_dev = sqrt(std_dev);
-  std::cout << "mean(t10%) = " << mean << std::endl;
-  std::cout << "realtive std_dev(t10%) = " << std_dev / mean << std::endl;
+  std::cout << "mean(t10%) = " << mean_t10 << std::endl;
+  std::cout << "realtive std_dev(t10%) = " << std_dev / mean_t10 << std::endl;
+
+  // calc and print out mean tau10 and tau10 std_dev
+  const int mean_t10_idx = mean_t10 / opts_init.dt + 0.5;
+  float mean = 0.;
+  for(int j=0; j<n_cell; ++j)
+  {
+    mean += tau[mean_t10_idx][j];
+  }
+  mean/=n_cell;
+  std_dev=0.;
+  for(int j=0; j<n_cell; ++j)
+    std_dev += pow(tau[mean_t10_idx][j] - mean, 2);
+  std_dev /= n_cell;
+  std_dev = sqrt(std_dev);
+  std::cout << "mean(tau10%) = " << mean << std::endl;
+  std::cout << "realtive std_dev(tau10%) = " << std_dev / mean << std::endl;
 
 // output
   for (int i=0; i <rad_bins.size() -1; ++i)
