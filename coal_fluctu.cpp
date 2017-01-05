@@ -1,6 +1,6 @@
 /*
  * calculate coalescence fluctuations and statistics
- * ensamble of nx same cells * n_rep repetitions
+ * ensamble of nx cells * n_rep repetitions
 */
 
 #include <iostream>
@@ -41,9 +41,9 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 5;
-const int sim_time=1;//500;//2500; // 2500 steps
-const int nx = 1;
+const int n_rep = 10;
+const int sim_time=2500;//500;//2500; // 2500 steps
+const int nx = 1e3;
 const int ny = 1;
 const int nz = 1;
 const float dt = 1.;
@@ -153,8 +153,10 @@ int main(){
   std::array<float, nx> init_cloud_mass;
   std::array<float, nx> init_rain_mass;
   std::array<float, nx * n_rep> t10;
-  std::array<std::array<float, nx * n_rep>, sim_time> tau; // ratio of rain mass to LWC
-  std::array<std::array<float, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
+  //std::array<std::array<float, nx * n_rep>, sim_time> float tau; // ratio of rain mass to LWC
+  auto tau = new float[sim_time][nx*n_rep]; // ratio of rain mass to LWC
+  //std::array<std::array<float, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
+  auto max_rw = new float[sim_time][nx*n_rep]; // ratio of rain mass to LWC
   t10.fill(0.);
 
   std::array<std::array<float, 1201>, n_rep> res_bins_pre;
@@ -174,7 +176,9 @@ int main(){
     opts_init.sstp_cond = 1; 
     opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
     opts_init.terminal_velocity = vt_t::beard76;
-    opts_init.dx = 1.06e4 /  (n1_stp * si::cubic_metres);
+    opts_init.kernel = kernel_t::hall;
+    opts_init.terminal_velocity = vt_t::beard77fast;
+    opts_init.dx = 1e-6;// 7.24e4 /  (n1_stp * si::cubic_metres);
     opts_init.dy = 1;
     opts_init.dz = 1; 
   
@@ -209,6 +213,7 @@ int main(){
       0. // key
     ); 
   */
+/*
     boost::assign::ptr_map_insert<
       exp_dry_radii<float> // value type
     >(  
@@ -216,7 +221,8 @@ int main(){
     )(  
       0. // key
     ); 
-  //  opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
+*/
+    opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
   
     std::unique_ptr<particles_proto_t<float>> prtcls(
       factory<float>(
@@ -338,36 +344,35 @@ int main(){
     of_max_rw_std_dev << i * dt << " " << std_dev_max_rw << std::endl;
   }
 
-  /*
   // calc and print out mean t10 and t10 std_dev
   float mean_t10 = 0.;
-  for(int j=0; j<n_cell; ++j)
+  for(int j=0; j<n_cell * n_rep; ++j)
   {
     if(t10[j] == 0.)
       std::cerr << "t10 == 0. !! too short simulation" << std::endl;
     mean_t10 += t10[j];
   }
-  mean_t10/=n_cell;
+  mean_t10/=n_cell*n_rep;
   float std_dev=0.;
-  for(int j=0; j<n_cell; ++j)
+  for(int j=0; j<n_cell*n_rep; ++j)
     std_dev += pow(t10[j] - mean_t10, 2);
-  std_dev /= (n_cell-1);
+  std_dev /= (n_cell*n_rep-1);
   std_dev = sqrt(std_dev);
   std::cout << "mean(t10%) = " << mean_t10 << std::endl;
   std::cout << "realtive std_dev(t10%) = " << std_dev / mean_t10 << std::endl;
 
   // calc and print out mean tau10 and tau10 std_dev
-  const int mean_t10_idx = mean_t10 / opts_init.dt + 0.5;
+  const int mean_t10_idx = mean_t10 / dt + 0.5;
   float mean = 0.;
-  for(int j=0; j<n_cell; ++j)
+  for(int j=0; j<n_cell*n_rep; ++j)
   {
     mean += tau[mean_t10_idx][j];
   }
-  mean/=n_cell;
+  mean/=n_cell*n_rep;
   std_dev=0.;
-  for(int j=0; j<n_cell; ++j)
+  for(int j=0; j<n_cell*n_rep; ++j)
     std_dev += pow(tau[mean_t10_idx][j] - mean, 2);
-  std_dev /= (n_cell-1);
+  std_dev /= (n_cell*n_rep-1);
   std_dev = sqrt(std_dev);
   std::cout << "mean(tau10%) = " << mean << std::endl;
   std::cout << "realtive std_dev(tau10%) = " << std_dev / mean << std::endl;
@@ -376,10 +381,17 @@ int main(){
   for (int i=0; i <rad_bins.size() -1; ++i)
   {
     float rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
-    of_size_spectr << rad * 1e6 << " " << res_bins_pre[i] << " " << res_bins_post[i] << std::endl; 
+    float pre = 0, post = 0;
+    for(int j=0; j< n_rep; ++j)
+    {
+      pre += res_bins_pre[j][i];
+      post += res_bins_post[j][i];
+    }
+    pre /= n_rep;
+    post /= n_rep;
+    of_size_spectr << rad * 1e6 << " " << pre << " " << post << std::endl; 
   }
 
-*/
 //  debug::print(prtcls->impl->n);
 
 //  for(int i=0;i<100;++i)
