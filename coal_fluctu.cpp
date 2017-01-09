@@ -41,8 +41,8 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 10;
-const int sim_time=2500;//500;//2500; // 2500 steps
+const int n_rep = 1;
+const int sim_time=500;//500;//2500; // 2500 steps
 const int nx = 1e3;
 const int ny = 1;
 const int nz = 1;
@@ -176,9 +176,9 @@ int main(){
     opts_init.sstp_cond = 1; 
     opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
     opts_init.terminal_velocity = vt_t::beard76;
-    opts_init.kernel = kernel_t::hall;
-    opts_init.terminal_velocity = vt_t::beard77fast;
-    opts_init.dx = 1e-6;// 7.24e4 /  (n1_stp * si::cubic_metres);
+//    opts_init.kernel = kernel_t::hall;
+  //  opts_init.terminal_velocity = vt_t::beard77fast;
+    opts_init.dx = 7.24e3 /  (n1_stp * si::cubic_metres);
     opts_init.dy = 1;
     opts_init.dz = 1; 
   
@@ -196,10 +196,11 @@ int main(){
   
     n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
   
-  //  opts_init.sd_conc = int(128);
-    opts_init.sd_const_multi = 1;
+    opts_init.sd_conc = int(1024);
+    opts_init.sd_conc_large_tail = true;
+//    opts_init.sd_const_multi = 1;
   //  opts_init.n_sd_max = 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
-    opts_init.n_sd_max = 3e7;// 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
+    opts_init.n_sd_max = 1e8;// 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
   std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl; 
   
   //  for (auto rad_bin : rad_bins)
@@ -213,7 +214,7 @@ int main(){
       0. // key
     ); 
   */
-/*
+
     boost::assign::ptr_map_insert<
       exp_dry_radii<float> // value type
     >(  
@@ -221,8 +222,8 @@ int main(){
     )(  
       0. // key
     ); 
-*/
-    opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
+
+//    opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
   
     std::unique_ptr<particles_proto_t<float>> prtcls(
       factory<float>(
