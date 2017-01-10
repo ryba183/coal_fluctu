@@ -41,12 +41,13 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 1;
+const int n_rep = 10;
 const int sim_time=500;//500;//2500; // 2500 steps
-const int nx = 1e3;
+const int nx = 1e2;
 const int ny = 1;
 const int nz = 1;
 const float dt = 1.;
+const float Np = 7.24e4;
 
 
 // lognormal aerosol distribution
@@ -178,7 +179,7 @@ int main(){
     opts_init.terminal_velocity = vt_t::beard76;
 //    opts_init.kernel = kernel_t::hall;
   //  opts_init.terminal_velocity = vt_t::beard77fast;
-    opts_init.dx = 7.24e3 /  (n1_stp * si::cubic_metres);
+    opts_init.dx = Np /  (n1_stp * si::cubic_metres);
     opts_init.dy = 1;
     opts_init.dz = 1; 
   
@@ -196,9 +197,9 @@ int main(){
   
     n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
   
-    opts_init.sd_conc = int(1024);
-    opts_init.sd_conc_large_tail = true;
-//    opts_init.sd_const_multi = 1;
+//    opts_init.sd_conc = int(1024);
+  //  opts_init.sd_conc_large_tail = true;
+    opts_init.sd_const_multi = 1;
   //  opts_init.n_sd_max = 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
     opts_init.n_sd_max = 1e8;// 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
   std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl; 
