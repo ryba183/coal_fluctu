@@ -16,6 +16,8 @@
 #include <time.h>
 #include <libcloudph++/common/earth.hpp>
 
+//#define Onishi
+
 
 using namespace std;
 using namespace libcloudphxx::lgrngn;
@@ -41,13 +43,24 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 1e3;
-const int sim_time=500;//500;//2500; // 2500 steps
-const int nx = 1;
+const int n_rep = 10;
+const int sim_time=2500;//500;//2500; // 2500 steps
+const int nx = 1e3;
 const int ny = 1;
 const int nz = 1;
 const float dt = 1.;
 const float Np = 1e7;
+//const float dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
+const float dx = 100e-6; // for bi-disperse (alfonso) comparison
+const int dev_id=1;
+const int sstp_coal = 1;
+
+const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
+
+/*
+const float sd_conc = 1024;
+const bool tail = true;
+*/
 
 
 // lognormal aerosol distribution
@@ -174,14 +187,16 @@ int main(){
   {
     opts_init_t<float> opts_init;
   
+    opts_init.dev_id=dev_id;
     opts_init.dt=dt;
-    opts_init.sstp_coal = 1; 
+    opts_init.sstp_coal = sstp_coal; 
     opts_init.sstp_cond = 1; 
-    opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
+//    opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
+    opts_init.kernel = kernel_t::hall;
+
     opts_init.terminal_velocity = vt_t::beard76;
-//    opts_init.kernel = kernel_t::hall;
   //  opts_init.terminal_velocity = vt_t::beard77fast;
-    opts_init.dx = Np /  (n1_stp * si::cubic_metres);
+    opts_init.dx = dx;
     opts_init.dy = 1;
     opts_init.dz = 1; 
   
@@ -198,13 +213,32 @@ int main(){
     opts_init.rng_seed = time(NULL);
   
     n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
+
+#ifdef Onishi
+  std::cout << "Onishi (expvolume) run!" << std::endl;
+  std::cout << "Np = " << Np << std::endl;
+#else
+  std::cout << "Alfonso (bi-disperse) run!" << std::endl;
+  std::cout << "dx = " << dx << std::endl;
+#endif
+
+    std::cout << "n_rep = " << n_rep 
+              << " nx = " << nx
+              << " sim_time = " << sim_time
+              << " dt = " << dt
+              << " sstp_coal = " << sstp_coal
+              << " dev_id = " << dev_id
+              << " const_multi = " << sd_const_multi
+              << " sd_conc = " << sd_conc
+              << " tail = " << tail
+              << std::endl;
   
-//    opts_init.sd_conc = int(1024);
- //   opts_init.sd_conc_large_tail = true;
-    opts_init.sd_const_multi = 1;
+    opts_init.sd_conc = sd_conc;//int(1024);
+    opts_init.sd_conc_large_tail = tail;
+    opts_init.sd_const_multi = sd_const_multi;
   //  opts_init.n_sd_max = 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
     opts_init.n_sd_max = 1e8;// 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
-  std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl; 
+//  std::cout << "opts_init.n_sd_max: " << opts_init.n_sd_max << std::endl; 
   
   //  for (auto rad_bin : rad_bins)
     //  std::cout << rad_bin;
@@ -218,6 +252,7 @@ int main(){
     ); 
   */
 
+#ifdef Onishi
     boost::assign::ptr_map_insert<
       exp_dry_radii<float> // value type
     >(  
@@ -225,8 +260,9 @@ int main(){
     )(  
       0. // key
     ); 
-
-//    opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
+#else
+    opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
+#endif
   
     std::unique_ptr<particles_proto_t<float>> prtcls(
       factory<float>(
@@ -237,7 +273,7 @@ int main(){
   
     using libcloudphxx::common::earth::rho_stp;
     rho_stp_f = (rho_stp<float>() / si::kilograms * si::cubic_metres);
-    std::cout << "rho stp f = " << rho_stp_f << std::endl;
+//    std::cout << "rho stp f = " << rho_stp_f << std::endl;
   
     std::array<float, 1> pth;
     std::array<float, 1> prhod;
@@ -350,17 +386,22 @@ int main(){
 
   // calc and print out mean t10 and t10 std_dev
   float mean_t10 = 0.;
+  int t10_sims = 0;
   for(int j=0; j<n_cell * n_rep; ++j)
   {
     if(t10[j] == 0.)
       std::cerr << "t10 == 0. !! too short simulation" << std::endl;
-    mean_t10 += t10[j];
+    else
+    {
+      ++t10_sims;
+      mean_t10 += t10[j];
+    }
   }
-  mean_t10/=n_cell*n_rep;
+  mean_t10/=t10_sims;//n_cell*n_rep;
   float std_dev=0.;
   for(int j=0; j<n_cell*n_rep; ++j)
     std_dev += pow(t10[j] - mean_t10, 2);
-  std_dev /= (n_cell*n_rep-1);
+  std_dev /= (t10_sims-1);
   std_dev = sqrt(std_dev);
   std::cout << "mean(t10%) = " << mean_t10 << std::endl;
   std::cout << "realtive std_dev(t10%) = " << std_dev / mean_t10 << std::endl;
