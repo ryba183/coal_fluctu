@@ -41,13 +41,13 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 10;
+const int n_rep = 1e3;
 const int sim_time=500;//500;//2500; // 2500 steps
-const int nx = 1e2;
+const int nx = 1;
 const int ny = 1;
 const int nz = 1;
 const float dt = 1.;
-const float Np = 7.24e4;
+const float Np = 1e7;
 
 
 // lognormal aerosol distribution
@@ -160,8 +160,10 @@ int main(){
   auto max_rw = new float[sim_time][nx*n_rep]; // ratio of rain mass to LWC
   t10.fill(0.);
 
-  std::array<std::array<float, 1201>, n_rep> res_bins_pre;
-  std::array<std::array<float, 1201>, n_rep> res_bins_post;
+  std::vector<std::array<float, 1201>> res_bins_pre(n_rep);
+//  auto res_bins_pre = new float[n_rep][1201];
+  std::vector<std::array<float, 1201>> res_bins_post(n_rep);
+//  auto res_bins_post = new float[n_rep][1201];
   std::iota(rad_bins.begin(), rad_bins.end(), 0);
   for (auto &rad_bin : rad_bins)
   {
@@ -198,7 +200,7 @@ int main(){
     n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
   
 //    opts_init.sd_conc = int(1024);
-  //  opts_init.sd_conc_large_tail = true;
+ //   opts_init.sd_conc_large_tail = true;
     opts_init.sd_const_multi = 1;
   //  opts_init.n_sd_max = 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
     opts_init.n_sd_max = 1e8;// 20e6 * opts_init.x1 * opts_init.y1 * opts_init.z1 + 1;
