@@ -16,7 +16,7 @@
 #include <time.h>
 #include <libcloudph++/common/earth.hpp>
 
-//#define Onishi
+ #define Onishi
 
 
 using namespace std;
@@ -29,38 +29,37 @@ namespace lognormal = libcloudphxx::common::lognormal;
 
 //aerosol bimodal lognormal dist. 
 const quantity<si::length, float>
-  mean_rd1 = float(15e-6) * si::metres;
-//  mean_rd2 = float(.15e-6 / 2) * si::metres;
+//  mean_rd1 = float(15e-6) * si::metres;  // Onishi
+  mean_rd1 = float(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
 const quantity<si::dimensionless, float>
   sdev_rd1 = float(1.4);
-//  sdev_rd2 = float(1.6);
 const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float>
   n1_stp = float(142e6) / si::cubic_metres;
-//  n2_stp = float(40e6) / si::cubic_metres;
 
 
 //globals
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 10;
-const int sim_time=2500;//500;//2500; // 2500 steps
-const int nx = 1e3;
+const int n_rep = 1;
+const int sim_time=3600;//500;//2500; // 2500 steps
+const int nx = 1;
 const int ny = 1;
 const int nz = 1;
 const float dt = 1.;
-const float Np = 1e7;
-//const float dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
-const float dx = 100e-6; // for bi-disperse (alfonso) comparison
-const int dev_id=1;
+const float Np = 297e6;
+#ifdef Onishi
+  const float dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
+#else
+  const float dx = 1e-6; // for bi-disperse (alfonso) comparison
+#endif
+const int dev_id=2;
 const int sstp_coal = 1;
 
-const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
+//const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
 
-/*
-const float sd_conc = 1024;
-const bool tail = true;
-*/
+const int sd_const_multi = 0; const float sd_conc = 1024; const bool tail = true;
+
 
 
 // lognormal aerosol distribution
@@ -162,7 +161,7 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
 
 int main(){
   std::ofstream of_size_spectr("size_spectr.dat");
-  std::ofstream of_max_rw_std_dev("max_rw_std_dev.dat");
+  std::ofstream of_max_drop_vol("max_drop_vol.dat");
 
   std::array<float, nx> init_cloud_mass;
   std::array<float, nx> init_rain_mass;
@@ -182,6 +181,26 @@ int main(){
   {
     rad_bin = rad_bin * 1e-6 + 10e-6; 
   }
+
+#ifdef Onishi
+  std::cout << "Onishi (expvolume) run!" << std::endl;
+  std::cout << "Np = " << Np << std::endl;
+#else
+  std::cout << "Alfonso (bi-disperse) run!" << std::endl;
+  std::cout << "dx = " << dx << std::endl;
+#endif
+
+  std::cout << "n_rep = " << n_rep 
+            << " nx = " << nx
+            << " sim_time = " << sim_time
+            << " dt = " << dt
+            << " sstp_coal = " << sstp_coal
+            << " dev_id = " << dev_id
+            << " const_multi = " << sd_const_multi
+            << " sd_conc = " << sd_conc
+            << " tail = " << tail
+            << std::endl;
+
   // repetitions loop
   for(int rep = 0; rep < n_rep; ++rep)
   {
@@ -214,24 +233,6 @@ int main(){
   
     n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
 
-#ifdef Onishi
-  std::cout << "Onishi (expvolume) run!" << std::endl;
-  std::cout << "Np = " << Np << std::endl;
-#else
-  std::cout << "Alfonso (bi-disperse) run!" << std::endl;
-  std::cout << "dx = " << dx << std::endl;
-#endif
-
-    std::cout << "n_rep = " << n_rep 
-              << " nx = " << nx
-              << " sim_time = " << sim_time
-              << " dt = " << dt
-              << " sstp_coal = " << sstp_coal
-              << " dev_id = " << dev_id
-              << " const_multi = " << sd_const_multi
-              << " sd_conc = " << sd_conc
-              << " tail = " << tail
-              << std::endl;
   
     opts_init.sd_conc = sd_conc;//int(1024);
     opts_init.sd_conc_large_tail = tail;
@@ -371,17 +372,17 @@ int main(){
   // calc and print max rw (mass) std dev
   for(int i=0; i<sim_time; ++i)
   {
-    float mean_max_rw = 0.;
-    float std_dev_max_rw = 0.;
+    float mean_max_vol = 0.;
+    float std_dev_max_vol = 0.;
     for(int j=0; j < nx * n_rep; ++j)
-      mean_max_rw += std::pow(max_rw[i][j], 3); // mass std dev...
+      mean_max_vol += std::pow(max_rw[i][j], 3); // mass std dev...
 
-    mean_max_rw /= float(nx * n_rep);
+    mean_max_vol /= float(nx * n_rep);
     for(int j=0; j < nx * n_rep; ++j)
-      std_dev_max_rw += std::pow(std::pow(max_rw[i][j], 3) / mean_max_rw - 1, 2);
-    std_dev_max_rw = std::sqrt(std_dev_max_rw / (nx * n_rep-1));
+      std_dev_max_vol += std::pow(std::pow(max_rw[i][j], 3) / mean_max_vol - 1, 2);
+    std_dev_max_vol = std::sqrt(std_dev_max_vol / (nx * n_rep-1));
     
-    of_max_rw_std_dev << i * dt << " " << std_dev_max_rw << std::endl;
+    of_max_drop_vol << i * dt << " " << mean_max_vol << " " << std_dev_max_vol << std::endl; // save mean and relative std_dev
   }
 
   // calc and print out mean t10 and t10 std_dev
@@ -409,16 +410,25 @@ int main(){
   // calc and print out mean tau10 and tau10 std_dev
   const int mean_t10_idx = mean_t10 / dt + 0.5;
   float mean = 0.;
-  for(int j=0; j<n_cell*n_rep; ++j)
+  std::cout << "mean(t10%) = " << mean_t10 << std::endl;
+  if(mean_t10 > 0.)
   {
-    mean += tau[mean_t10_idx][j];
-  }
+    for(int j=0; j<n_cell*n_rep; ++j)
+    {
+      mean += tau[mean_t10_idx][j];
+    }
   mean/=n_cell*n_rep;
   std_dev=0.;
   for(int j=0; j<n_cell*n_rep; ++j)
     std_dev += pow(tau[mean_t10_idx][j] - mean, 2);
   std_dev /= (n_cell*n_rep-1);
   std_dev = sqrt(std_dev);
+  }
+  else 
+  {
+    mean = NAN;
+    std_dev = NAN;
+  }
   std::cout << "mean(tau10%) = " << mean << std::endl;
   std::cout << "realtive std_dev(tau10%) = " << std_dev / mean << std::endl;
 
