@@ -132,7 +132,7 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
     sum += out[c];
   std::cout << "3rd wet mom mean: " << sum / n_cell << std::endl;
 
-  // get mass density function
+  // get spectrum
   for (int i=0; i <rad_bins.size() -1; ++i)
   {
 //    prtcls->diag_all();
@@ -147,12 +147,18 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
 //      std::cout << buf[c] << " ";
       mean += buf[c];
     }
-    mean /= n_cell;
+    mean = mean * rho_stp_f / n_cell; // mean number of droplets of radius rad [1/m^3]
     
-    res_bins[i]= mean * rho_stp_f / 1e6 // now its number per cm^3
+    // to get mass in bins in [g/cm^3]
+    /*
+    res_bins[i]= mean * / 1e6 // now its number per cm^3
                      * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
-                     // / (rad_bins[i+1] - rad_bins[i]); // to get density function
-//    of_size_spectr << rad * 1e6 << " " << res_bins_pre[i] << " " << res_bins_post[i] << std::endl; 
+    */
+
+    // to get mass density function (not through libcloudphxx estimator)
+    res_bins[i] = mean / (rad_bins[i+1] - rad_bins[i]) // number density 
+                    * 4./3.*3.14*pow(rad,4)*1e3        // * vol * rad * density
+                    * 1e3;                             // to get grams
   }
     std::cout << "res_bins sum (LWC?): " << std::accumulate(res_bins.begin(), res_bins.end(), 0.) << std::endl;
 }
@@ -179,7 +185,7 @@ int main(){
   std::iota(rad_bins.begin(), rad_bins.end(), 0);
   for (auto &rad_bin : rad_bins)
   {
-    rad_bin = rad_bin * 1e-6 + 10e-6; 
+    rad_bin = rad_bin * 1e-6;// + 10e-6; 
   }
 
 #ifdef Onishi
@@ -212,6 +218,7 @@ int main(){
     opts_init.sstp_cond = 1; 
 //    opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
     opts_init.kernel = kernel_t::hall;
+//    opts_init.kernel = kernel_t::Long;
 
     opts_init.terminal_velocity = vt_t::beard76;
   //  opts_init.terminal_velocity = vt_t::beard77fast;
