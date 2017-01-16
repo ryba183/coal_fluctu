@@ -16,7 +16,7 @@
 #include <time.h>
 #include <libcloudph++/common/earth.hpp>
 
- #define Onishi
+#define Onishi
 
 
 using namespace std;
@@ -29,8 +29,8 @@ namespace lognormal = libcloudphxx::common::lognormal;
 
 //aerosol bimodal lognormal dist. 
 const quantity<si::length, float>
-//  mean_rd1 = float(15e-6) * si::metres;  // Onishi
-  mean_rd1 = float(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
+  mean_rd1 = float(15e-6) * si::metres;  // Onishi
+//  mean_rd1 = float(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
 const quantity<si::dimensionless, float>
   sdev_rd1 = float(1.4);
 const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float>
@@ -42,19 +42,20 @@ std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
 const int n_rep = 1;
-const int sim_time=3600;//500;//2500; // 2500 steps
-const int nx = 1;
+const int sim_time=2500;//500;//2500; // 2500 steps
+const int nx = 1e3;
 const int ny = 1;
 const int nz = 1;
 const float dt = 1.;
-const float Np = 297e6;
+const float Np = 4e4;
 #ifdef Onishi
   const float dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
 #else
   const float dx = 1e-6; // for bi-disperse (alfonso) comparison
 #endif
-const int dev_id=2;
-const int sstp_coal = 1;
+const int dev_id=1;
+const int sstp_coal = 10;
+float cell_vol;
 
 //const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
 
@@ -132,6 +133,8 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
     sum += out[c];
   std::cout << "3rd wet mom mean: " << sum / n_cell << std::endl;
 
+  std::cout << "max possible rad (based on mean 3rd wet mom): " << pow(sum/n_cell * rho_stp_f * cell_vol, 1./3.) << std::endl;
+
   // get spectrum
   for (int i=0; i <rad_bins.size() -1; ++i)
   {
@@ -150,15 +153,17 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
     mean = mean * rho_stp_f / n_cell; // mean number of droplets of radius rad [1/m^3]
     
     // to get mass in bins in [g/cm^3]
-    /*
-    res_bins[i]= mean * / 1e6 // now its number per cm^3
+    
+    res_bins[i]= mean / 1e6 // now its number per cm^3
                      * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
-    */
+    
 
     // to get mass density function (not through libcloudphxx estimator)
+    /*
     res_bins[i] = mean / (rad_bins[i+1] - rad_bins[i]) // number density 
                     * 4./3.*3.14*pow(rad,4)*1e3        // * vol * rad * density
                     * 1e3;                             // to get grams
+    */
   }
     std::cout << "res_bins sum (LWC?): " << std::accumulate(res_bins.begin(), res_bins.end(), 0.) << std::endl;
 }
@@ -173,9 +178,9 @@ int main(){
   std::array<float, nx> init_rain_mass;
   std::array<float, nx * n_rep> t10;
   //std::array<std::array<float, nx * n_rep>, sim_time> float tau; // ratio of rain mass to LWC
-  auto tau = new float[sim_time][nx*n_rep]; // ratio of rain mass to LWC
+  auto tau = new float[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
   //std::array<std::array<float, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
-  auto max_rw = new float[sim_time][nx*n_rep]; // ratio of rain mass to LWC
+  auto max_rw = new float[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
   t10.fill(0.);
 
   std::vector<std::array<float, 1201>> res_bins_pre(n_rep);
@@ -225,6 +230,7 @@ int main(){
     opts_init.dx = dx;
     opts_init.dy = 1;
     opts_init.dz = 1; 
+    cell_vol = opts_init.dx;
   
     opts_init.sedi_switch=0;
     opts_init.src_switch=0;
@@ -274,7 +280,7 @@ int main(){
   
     std::unique_ptr<particles_proto_t<float>> prtcls(
       factory<float>(
-        (backend_t)CUDA, 
+        (backend_t)OpenMP,//CUDA, 
         opts_init
       )
     );
@@ -329,13 +335,21 @@ int main(){
       init_rain_mass[j] = arr[j];
     }
   
-  
     float glob_max_rw = 0.;
-    for(int i=0; i<sim_time; ++i)
+    // get max rw
+    prtcls->diag_max_rw();
+    arr = prtcls->outbuf();
+    for(int j=0; j<n_cell; ++j)
+    {
+      if(arr[j] > glob_max_rw) glob_max_rw = arr[j];
+      max_rw[0][j + rep * nx] = arr[j];
+    }
+  
+    for(int i=1; i<=sim_time; ++i)
     {
       two_step(prtcls.get(),th,rv,opts);
   
-      // get std dev of max rw
+      // get max rw
       prtcls->diag_max_rw();
       arr = prtcls->outbuf();
       for(int j=0; j<n_cell; ++j)
@@ -343,6 +357,8 @@ int main(){
         if(arr[j] > glob_max_rw) glob_max_rw = arr[j];
         max_rw[i][j + rep * nx] = arr[j];
       }
+
+      // get mean_sd_conc
       prtcls->diag_sd_conc();
       arr = prtcls->outbuf();
       float mean_sd_conc = 0;
@@ -354,7 +370,6 @@ int main(){
   
   printf("\rrep no: %3d progress: %3d%%: rw_max %lf mean_sd_conc %lf", rep, int(float(i) / sim_time * 100), glob_max_rw, mean_sd_conc);
   std::cout << std::flush;
-  
   
       // get t10 (time to conver 10% of cloud water into rain water)
       prtcls->diag_wet_rng(40e-6, 1); // rain water (like in Onishi)
@@ -377,7 +392,7 @@ int main(){
   }
 
   // calc and print max rw (mass) std dev
-  for(int i=0; i<sim_time; ++i)
+  for(int i=0; i<=sim_time; ++i)
   {
     float mean_max_vol = 0.;
     float std_dev_max_vol = 0.;
@@ -417,7 +432,6 @@ int main(){
   // calc and print out mean tau10 and tau10 std_dev
   const int mean_t10_idx = mean_t10 / dt + 0.5;
   float mean = 0.;
-  std::cout << "mean(t10%) = " << mean_t10 << std::endl;
   if(mean_t10 > 0.)
   {
     for(int j=0; j<n_cell*n_rep; ++j)
