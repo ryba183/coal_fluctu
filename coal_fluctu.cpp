@@ -366,7 +366,6 @@ int main(){
       if(arr[j] > max_rw[0][large_cell_idx + rep * n_large_cells])
         max_rw[0][large_cell_idx + rep * n_large_cells] = arr[j];
     }
-std::cout << max_rw[0][0] << std::endl;
   
     for(int i=1; i<=sim_time; ++i)
     {
@@ -388,7 +387,6 @@ std::cout << max_rw[0][0] << std::endl;
         if(arr[j] > max_rw[i][large_cell_idx + rep * n_large_cells])
           max_rw[i][large_cell_idx + rep * n_large_cells] = arr[j];
       }
-std::cout << std::endl << max_rw[i][0] << std::endl;
 
       // get mean_sd_conc
       prtcls->diag_sd_conc();
