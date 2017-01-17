@@ -1,6 +1,7 @@
 /*
  * calculate coalescence fluctuations and statistics
  * ensamble of nx cells * n_rep repetitions
+ * statistics of max_rw can be calcul;ated using larger cells, conataining more than one cimulation cell
 */
 
 #include <iostream>
@@ -41,13 +42,14 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 1;
+const int n_rep = 1; // number of repetitions of simulation
 const int sim_time=2500;//2500;//500;//2500; // 2500 steps
-const int nx = 1e3;
-const int ny = 1;
-const int nz = 1;
+const int nx = 1e4;  // total number of collision cells
 const float dt = 1.;
-const float Np = 4e4;
+const float Np = 40; // number of droplets per simulation (collision cell)
+const float Np_in_avg_r_max_cell = 4e4; // number of droplets per large cells in which we look for r_max
+const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
+const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
 #ifdef Onishi
   const float dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
 #else
@@ -55,11 +57,14 @@ const float Np = 4e4;
 #endif
 const int dev_id=1;
 const int sstp_coal = 10;
+
+const int ny = 1;
+const int nz = 1;
 float cell_vol;
 
-//const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
+const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
 
-const int sd_const_multi = 0; const float sd_conc = 32; const bool tail = true;
+//const int sd_const_mult-i = 0; const float sd_conc = 32; const bool tail = true;
 
 
 
@@ -171,6 +176,12 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
 
 
 int main(){
+  // sanity check
+  if(n_cells_per_avg_r_max_cell * Np != Np_in_avg_r_max_cell)
+    throw std::runtime_error("Np_in_avg_r_max_cell nie jest wilokrotnoscia Np");
+  if(n_large_cells * n_cells_per_avg_r_max_cell != nx)
+    throw std::runtime_error("nx nie jest wilokrotnoscia n_cells_per_avg_r_max_cell");
+
   std::ofstream of_size_spectr("size_spectr.dat");
   std::ofstream of_max_drop_vol("max_drop_vol.dat");
 
@@ -180,7 +191,7 @@ int main(){
   //std::array<std::array<float, nx * n_rep>, sim_time> float tau; // ratio of rain mass to LWC
   auto tau = new float[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
   //std::array<std::array<float, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
-  auto max_rw = new float[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
+  auto max_rw = new float[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
   t10.fill(0.);
 
   std::vector<std::array<float, 1201>> res_bins_pre(n_rep);
@@ -196,12 +207,14 @@ int main(){
 #ifdef Onishi
   std::cout << "Onishi (expvolume) run!" << std::endl;
   std::cout << "Np = " << Np << std::endl;
+  std::cout << "Np per avg cell = " << Np_in_avg_r_max_cell << std::endl;
 #else
   std::cout << "Alfonso (bi-disperse) run!" << std::endl;
   std::cout << "dx = " << dx << std::endl;
 #endif
 
   std::cout << "n_rep = " << n_rep 
+            << " n_large_cells = " << n_large_cells
             << " nx = " << nx
             << " sim_time = " << sim_time
             << " dt = " << dt
@@ -339,24 +352,43 @@ int main(){
     // get max rw
     prtcls->diag_max_rw();
     arr = prtcls->outbuf();
+    int large_cell_idx = -1;
     for(int j=0; j<n_cell; ++j)
     {
+//      float large_cell_max_rw;
+      if(j % n_cells_per_avg_r_max_cell == 0)
+      {
+  //      large_cell_max_rw = 0.;
+        large_cell_idx++;
+        max_rw[0][large_cell_idx + rep * n_large_cells] = 0.;//large_cell_max_rw;
+      }
       if(arr[j] > glob_max_rw) glob_max_rw = arr[j];
-      max_rw[0][j + rep * nx] = arr[j];
+      if(arr[j] > max_rw[0][large_cell_idx + rep * n_large_cells])
+        max_rw[0][large_cell_idx + rep * n_large_cells] = arr[j];
     }
+std::cout << max_rw[0][0] << std::endl;
   
     for(int i=1; i<=sim_time; ++i)
     {
       two_step(prtcls.get(),th,rv,opts);
-  
       // get max rw
       prtcls->diag_max_rw();
       arr = prtcls->outbuf();
+      int large_cell_idx = -1;
       for(int j=0; j<n_cell; ++j)
       {
+  //      float large_cell_max_rw;
+        if(j % n_cells_per_avg_r_max_cell == 0)
+        {
+    //      large_cell_max_rw = 0.;
+          large_cell_idx++;
+          max_rw[i][large_cell_idx + rep * n_large_cells] = 0.;//large_cell_max_rw;
+        }
         if(arr[j] > glob_max_rw) glob_max_rw = arr[j];
-        max_rw[i][j + rep * nx] = arr[j];
+        if(arr[j] > max_rw[i][large_cell_idx + rep * n_large_cells])
+          max_rw[i][large_cell_idx + rep * n_large_cells] = arr[j];
       }
+std::cout << std::endl << max_rw[i][0] << std::endl;
 
       // get mean_sd_conc
       prtcls->diag_sd_conc();
@@ -398,22 +430,22 @@ int main(){
     float mean_max_vol = 0.;
     float std_dev_max_vol = 0.;
     float std_dev_max_rad = 0.;
-    for(int j=0; j < nx * n_rep; ++j)
+    for(int j=0; j < n_large_cells * n_rep; ++j)
     {
       mean_max_rad += max_rw[i][j];
       mean_max_vol += std::pow(max_rw[i][j],3);
     }
 
-    mean_max_rad /= float(nx * n_rep);
-    mean_max_vol /= float(nx * n_rep);
+    mean_max_rad /= float(n_large_cells * n_rep);
+    mean_max_vol /= float(n_large_cells * n_rep);
 
-    for(int j=0; j < nx * n_rep; ++j)
+    for(int j=0; j < n_large_cells * n_rep; ++j)
     {
       std_dev_max_vol += std::pow(std::pow(max_rw[i][j], 3) / mean_max_vol - 1, 2); // relative std dev of mass of largest one
       std_dev_max_rad += std::pow(max_rw[i][j] - mean_max_rad, 2);
     }
-    std_dev_max_vol = std::sqrt(std_dev_max_vol / (nx * n_rep-1));
-    std_dev_max_rad = std::sqrt(std_dev_max_rad / (nx * n_rep-1));
+    std_dev_max_vol = std::sqrt(std_dev_max_vol / (n_large_cells * n_rep-1));
+    std_dev_max_rad = std::sqrt(std_dev_max_rad / (n_large_cells * n_rep-1));
     
     of_max_drop_vol << i * dt << " " << mean_max_vol << " " << std_dev_max_vol << " " << mean_max_rad << " " << std_dev_max_rad << std::endl; // save mean and relative std_dev
   }
