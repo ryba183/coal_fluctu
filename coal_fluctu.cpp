@@ -42,7 +42,7 @@ std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
 const int n_rep = 1;
-const int sim_time=2500;//500;//2500; // 2500 steps
+const int sim_time=2500;//2500;//500;//2500; // 2500 steps
 const int nx = 1e3;
 const int ny = 1;
 const int nz = 1;
@@ -59,7 +59,7 @@ float cell_vol;
 
 //const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
 
-const int sd_const_multi = 0; const float sd_conc = 1024; const bool tail = true;
+const int sd_const_multi = 0; const float sd_conc = 32; const bool tail = true;
 
 
 
@@ -280,7 +280,7 @@ int main(){
   
     std::unique_ptr<particles_proto_t<float>> prtcls(
       factory<float>(
-        (backend_t)OpenMP,//CUDA, 
+        (backend_t)CUDA, 
         opts_init
       )
     );
@@ -394,17 +394,28 @@ int main(){
   // calc and print max rw (mass) std dev
   for(int i=0; i<=sim_time; ++i)
   {
+    float mean_max_rad = 0.;
     float mean_max_vol = 0.;
     float std_dev_max_vol = 0.;
+    float std_dev_max_rad = 0.;
     for(int j=0; j < nx * n_rep; ++j)
-      mean_max_vol += std::pow(max_rw[i][j], 3); // mass std dev...
+    {
+      mean_max_rad += max_rw[i][j];
+      mean_max_vol += std::pow(max_rw[i][j],3);
+    }
 
+    mean_max_rad /= float(nx * n_rep);
     mean_max_vol /= float(nx * n_rep);
+
     for(int j=0; j < nx * n_rep; ++j)
-      std_dev_max_vol += std::pow(std::pow(max_rw[i][j], 3) / mean_max_vol - 1, 2);
+    {
+      std_dev_max_vol += std::pow(std::pow(max_rw[i][j], 3) / mean_max_vol - 1, 2); // relative std dev of mass of largest one
+      std_dev_max_rad += std::pow(max_rw[i][j] - mean_max_rad, 2);
+    }
     std_dev_max_vol = std::sqrt(std_dev_max_vol / (nx * n_rep-1));
+    std_dev_max_rad = std::sqrt(std_dev_max_rad / (nx * n_rep-1));
     
-    of_max_drop_vol << i * dt << " " << mean_max_vol << " " << std_dev_max_vol << std::endl; // save mean and relative std_dev
+    of_max_drop_vol << i * dt << " " << mean_max_vol << " " << std_dev_max_vol << " " << mean_max_rad << " " << std_dev_max_rad << std::endl; // save mean and relative std_dev
   }
 
   // calc and print out mean t10 and t10 std_dev
