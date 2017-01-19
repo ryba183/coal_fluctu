@@ -28,14 +28,15 @@ namespace theta_std = libcloudphxx::common::theta_std;
 namespace theta_dry = libcloudphxx::common::theta_dry;
 namespace lognormal = libcloudphxx::common::lognormal;
 
-//aerosol bimodal lognormal dist. 
 const quantity<si::length, float>
   mean_rd1 = float(15e-6) * si::metres;  // Onishi
+//  mean_rd1 = float(0.02e-6) * si::metres;  // api_lgrngn
 //  mean_rd1 = float(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
 const quantity<si::dimensionless, float>
   sdev_rd1 = float(1.4);
 const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float>
-  n1_stp = float(142e6) / si::cubic_metres;
+  n1_stp = float(142e6) / si::cubic_metres; // Onishi? previous
+//  n1_stp = float(60e6) / si::cubic_metres; // api_lgrngn
 
 
 //globals
@@ -43,11 +44,11 @@ std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
 const int n_rep = 1; // number of repetitions of simulation
-const int sim_time=2500;//2500;//500;//2500; // 2500 steps
+const int sim_time=1000;//2500;//500;//2500; // 2500 steps
 const int nx = 1e4;  // total number of collision cells
 const float dt = 1.;
-const float Np = 40; // number of droplets per simulation (collision cell)
-const float Np_in_avg_r_max_cell = 4e4; // number of droplets per large cells in which we look for r_max
+const float Np = 7.24e3; // number of droplets per simulation (collision cell)
+const float Np_in_avg_r_max_cell = 7.24e3; // number of droplets per large cells in which we look for r_max
 const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
 #ifdef Onishi
@@ -56,15 +57,15 @@ const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
   const float dx = 1e-6; // for bi-disperse (alfonso) comparison
 #endif
 const int dev_id=1;
-const int sstp_coal = 10;
+const int sstp_coal = 1;
 
 const int ny = 1;
 const int nz = 1;
 float cell_vol;
 
-const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
+//const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
 
-//const int sd_const_mult-i = 0; const float sd_conc = 32; const bool tail = true;
+const int sd_const_multi = 0; const float sd_conc = 32; const bool tail = true;
 
 
 
@@ -192,6 +193,7 @@ int main(){
   auto tau = new float[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
   //std::array<std::array<float, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
   auto max_rw = new float[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
+  auto max_rw_cubed = new float[sim_time+1][n_rep * nx]; // max rw^3 per small cells (to compare with Alfonso)
   t10.fill(0.);
 
   std::vector<std::array<float, 1201>> res_bins_pre(n_rep);
@@ -269,15 +271,13 @@ int main(){
   
   //  for (auto rad_bin : rad_bins)
     //  std::cout << rad_bin;
-  /*
-    boost::assign::ptr_map_insert<
-      log_dry_radii<float> // value type
-    >(  
-      opts_init.dry_distros // map
-    )(  
-      0. // key
-    ); 
-  */
+//    boost::assign::ptr_map_insert<
+//      log_dry_radii<float> // value type
+//    >(  
+//      opts_init.dry_distros // map
+//    )(  
+//      0. // key
+//    ); 
 
 #ifdef Onishi
     boost::assign::ptr_map_insert<
@@ -293,7 +293,7 @@ int main(){
   
     std::unique_ptr<particles_proto_t<float>> prtcls(
       factory<float>(
-        (backend_t)CUDA, 
+        (backend_t)serial,//CUDA, 
         opts_init
       )
     );
@@ -365,6 +365,7 @@ int main(){
       if(arr[j] > glob_max_rw) glob_max_rw = arr[j];
       if(arr[j] > max_rw[0][large_cell_idx + rep * n_large_cells])
         max_rw[0][large_cell_idx + rep * n_large_cells] = arr[j];
+      max_rw_cubed[0][j + rep * n_cell] = std::pow(arr[j], 3);
     }
   
     for(int i=1; i<=sim_time; ++i)
@@ -386,6 +387,7 @@ int main(){
         if(arr[j] > glob_max_rw) glob_max_rw = arr[j];
         if(arr[j] > max_rw[i][large_cell_idx + rep * n_large_cells])
           max_rw[i][large_cell_idx + rep * n_large_cells] = arr[j];
+        max_rw_cubed[i][j + rep * n_cell] = std::pow(arr[j], 3);
       }
 
       // get mean_sd_conc
@@ -431,18 +433,25 @@ int main(){
     for(int j=0; j < n_large_cells * n_rep; ++j)
     {
       mean_max_rad += max_rw[i][j];
-      mean_max_vol += std::pow(max_rw[i][j],3);
+    }
+    for(int j=0; j < n_cell * n_rep; ++j)
+    {
+      mean_max_vol += max_rw_cubed[i][j];
     }
 
     mean_max_rad /= float(n_large_cells * n_rep);
-    mean_max_vol /= float(n_large_cells * n_rep);
+    mean_max_vol /= float(n_cell * n_rep);
 
     for(int j=0; j < n_large_cells * n_rep; ++j)
     {
-      std_dev_max_vol += std::pow(std::pow(max_rw[i][j], 3) / mean_max_vol - 1, 2); // relative std dev of mass of largest one
       std_dev_max_rad += std::pow(max_rw[i][j] - mean_max_rad, 2);
     }
-    std_dev_max_vol = std::sqrt(std_dev_max_vol / (n_large_cells * n_rep-1));
+    for(int j=0; j < n_cell * n_rep; ++j)
+    {
+      std_dev_max_vol += std::pow(max_rw_cubed[i][j] / mean_max_vol - 1, 2); // relative std dev of mass of largest one
+    }
+
+    std_dev_max_vol = std::sqrt(std_dev_max_vol / (n_cell * n_rep-1));
     std_dev_max_rad = std::sqrt(std_dev_max_rad / (n_large_cells * n_rep-1));
     
     of_max_drop_vol << i * dt << " " << mean_max_vol << " " << std_dev_max_vol << " " << mean_max_rad << " " << std_dev_max_rad << std::endl; // save mean and relative std_dev
@@ -453,14 +462,13 @@ int main(){
   int t10_sims = 0;
   for(int j=0; j<n_cell * n_rep; ++j)
   {
-    if(t10[j] == 0.)
-      std::cerr << "t10 == 0. !! too short simulation" << std::endl;
-    else
+    if(t10[j] != 0.)
     {
       ++t10_sims;
       mean_t10 += t10[j];
     }
   }
+  std::cout << "no. of cells that didn't reach t10%: " << n_cell * n_rep - t10_sims << std::endl;
   mean_t10/=t10_sims;//n_cell*n_rep;
   float std_dev=0.;
   for(int j=0; j<n_cell*n_rep; ++j)
