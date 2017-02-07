@@ -17,7 +17,7 @@
 #include <time.h>
 #include <libcloudph++/common/earth.hpp>
 
-// #define Onishi
+ #define Onishi
 
 
 using namespace std;
@@ -44,31 +44,29 @@ std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
 const int n_rep = 1e1; // number of repetitions of simulation
-const int sim_time=2500; //2500;//500;//2500; // 2500 steps
-const int nx = 1e3;  // total number of collision cells
+const int sim_time=300; //2500;//500;//2500; // 2500 steps
+const int nx = 1e2;  // total number of collision cells
 const float dt = 1.;
-const float Np = 1e2; // number of droplets per simulation (collision cell)
+const float Np = 1e5; // number of droplets per simulation (collision cell)
 const float Np_in_avg_r_max_cell = 1e6; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
   const float dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
 #else
   const int n_cells_per_avg_r_max_cell = 1; // r_max in each small cell separately
-  const float dx = 1000e-6; // for bi-disperse (alfonso) comparison
+  const float dx = 10000e-6; // for bi-disperse (alfonso) comparison
 #endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
-const int dev_id=1;
-const int sstp_coal = 1;
+const int dev_id=2;
+const int sstp_coal = 10;
 
 const int ny = 1;
 const int nz = 1;
 float cell_vol;
 
-const int sd_const_multi = 10; const float sd_conc = 0; const bool tail = 0;
+// const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
 
-//const int sd_const_multi = 0; const float sd_conc = 1024; const bool tail = true;
-
-
+  const int sd_const_multi = 0; const float sd_conc = 1024; const bool tail = true;
 
 // lognormal aerosol distribution
 template <typename T>
@@ -229,6 +227,7 @@ int main(){
             << " const_multi = " << sd_const_multi
             << " sd_conc = " << sd_conc
             << " tail = " << tail
+            << " mean_rd1 = " << mean_rd1
             << std::endl;
 
   // repetitions loop
@@ -327,7 +326,7 @@ int main(){
     opts.sedi = 0;
     opts.cond = 0;
     opts.coal = 1;
-    opts.rcyc = 0;
+    opts.rcyc = 1;
   
     std::fill(res_bins_pre[rep].begin(), res_bins_pre[rep].end(), 0.);
     std::fill(res_bins_post[rep].begin(), res_bins_post[rep].end(), 0.);
@@ -427,7 +426,21 @@ int main(){
 //    delete raw_ptr;
   }
 
-  // calc and print max rw (mass) std dev
+
+  // find history in which max_rw grew the most between 50s and 300s
+    double max_growth=0.;
+    int max_growth_idx;
+    for(int j=0; j < n_cell * n_rep; ++j)
+    {
+      double max_rw_local_growth = pow(max_rw_cubed[300][j], 1./3.) - pow(max_rw_cubed[50][j], 1./3.);
+      if(max_rw_local_growth > max_growth)
+      {
+        max_growth = max_rw_local_growth;
+        max_growth_idx = j;
+      }
+    }
+
+  // calc and print max rw (and mass) stats
   for(int i=0; i<=sim_time; ++i)
   {
     float glob_max_rad = 0.;
@@ -459,8 +472,10 @@ int main(){
 
     std_dev_max_vol = std::sqrt(std_dev_max_vol / (n_cell * n_rep-1));
     std_dev_max_rad = std::sqrt(std_dev_max_rad / (n_large_cells * n_rep-1));
+
     
-    of_max_drop_vol << i * dt << " " << mean_max_vol << " " << std_dev_max_vol << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << std::endl; // save mean and relative std_dev
+    
+    of_max_drop_vol << i * dt << " " << mean_max_vol << " " << std_dev_max_vol << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << pow(max_rw_cubed[i][max_growth_idx], 1./3.) << std::endl; // save mean and relative std_dev
   }
 
   // calc and print out mean t10 and t10 std_dev
