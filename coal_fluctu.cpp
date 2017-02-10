@@ -18,6 +18,7 @@
 #include <libcloudph++/common/earth.hpp>
 
  #define Onishi
+ #define cutoff
 
 
 using namespace std;
@@ -43,11 +44,11 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 1e1; // number of repetitions of simulation
+const int n_rep = 1e0; // number of repetitions of simulation
 const int sim_time=300; //2500;//500;//2500; // 2500 steps
-const int nx = 1e2;  // total number of collision cells
+const int nx = 1e4;  // total number of collision cells
 const float dt = 1.;
-const float Np = 1e5; // number of droplets per simulation (collision cell)
+const float Np = 1e2; // number of droplets per simulation (collision cell)
 const float Np_in_avg_r_max_cell = 1e6; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -57,16 +58,16 @@ const float Np_in_avg_r_max_cell = 1e6; // number of droplets per large cells in
   const float dx = 10000e-6; // for bi-disperse (alfonso) comparison
 #endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
-const int dev_id=2;
-const int sstp_coal = 10;
+const int dev_id=0;
+const int sstp_coal = 1;
 
 const int ny = 1;
 const int nz = 1;
 float cell_vol;
 
-// const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
+ const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
 
-  const int sd_const_multi = 0; const float sd_conc = 1024; const bool tail = true;
+//  const int sd_const_multi = 0; const float sd_conc = 1024; const bool tail = true;
 
 // lognormal aerosol distribution
 template <typename T>
@@ -92,7 +93,10 @@ struct exp_dry_radii : public libcloudphxx::common::unary_function<T>
   T funval(const T lnrd) const
   {   
     T r = exp(lnrd);
-    return (n1_stp * si::cubic_metres) * 3. * pow(r,3) / pow(mean_rd1 / si::metres, 3) * exp( - pow(r/(mean_rd1 / si::metres), 3));
+#ifdef cutoff
+    if(r>= 40e-6) return 0.; else 
+#endif
+return (n1_stp * si::cubic_metres) * 3. * pow(r,3) / pow(mean_rd1 / si::metres, 3) * exp( - pow(r/(mean_rd1 / si::metres), 3));
   }   
 
   exp_dry_radii *do_clone() const 
@@ -194,7 +198,7 @@ int main(){
   auto tau = new float[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
   //std::array<std::array<float, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
   auto max_rw = new float[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
-  auto max_rw_cubed = new float[sim_time+1][n_rep * nx]; // max rw^3 per small cells (to compare with Alfonso)
+  auto max_rw_small = new float[sim_time+1][n_rep * nx]; // max rw^3 per small cells (to compare with Alfonso)
 //  t10.fill(0.);
   for(int i=0; i<nx*n_rep; ++i) t10[i]=0.;
 
@@ -207,6 +211,9 @@ int main(){
   {
     rad_bin = rad_bin * 1e-6;// + 10e-6; 
   }
+#ifdef cutoff
+  std::cout << "init distr cutoff at 40 microns!" << std::endl;
+#endif
 
 #ifdef Onishi
   std::cout << "Onishi (expvolume) run!" << std::endl;
@@ -368,7 +375,7 @@ int main(){
       if(arr[j] > rep_max_rw) rep_max_rw = arr[j];
       if(arr[j] > max_rw[0][large_cell_idx + rep * n_large_cells])
         max_rw[0][large_cell_idx + rep * n_large_cells] = arr[j];
-      max_rw_cubed[0][j + rep * n_cell] = std::pow(arr[j], 3);
+      max_rw_small[0][j + rep * n_cell] = arr[j];
     }
   
     for(int i=1; i<=sim_time; ++i)
@@ -390,7 +397,7 @@ int main(){
         if(arr[j] > rep_max_rw) rep_max_rw = arr[j];
         if(arr[j] > max_rw[i][large_cell_idx + rep * n_large_cells])
           max_rw[i][large_cell_idx + rep * n_large_cells] = arr[j];
-        max_rw_cubed[i][j + rep * n_cell] = std::pow(arr[j], 3);
+        max_rw_small[i][j + rep * n_cell] = arr[j];
       }
 
       // get mean_sd_conc
@@ -432,7 +439,7 @@ int main(){
     int max_growth_idx;
     for(int j=0; j < n_cell * n_rep; ++j)
     {
-      double max_rw_local_growth = pow(max_rw_cubed[300][j], 1./3.) - pow(max_rw_cubed[50][j], 1./3.);
+      double max_rw_local_growth = max_rw_small[300][j] - max_rw_small[50][j];
       if(max_rw_local_growth > max_growth)
       {
         max_growth = max_rw_local_growth;
@@ -445,9 +452,14 @@ int main(){
   {
     float glob_max_rad = 0.;
     float mean_max_rad = 0.;
-    float mean_max_vol = 0.;
-    float std_dev_max_vol = 0.;
+    float mean_max_rad_small = 0.;
+    float mean_max_vol_small = 0.;
+    float std_dev_max_vol_small = 0.;
     float std_dev_max_rad = 0.;
+    float std_dev_max_rad_small = 0.;
+    double skew_max_rad_small = 0.;
+    double kurt_max_rad_small = 0.;
+
     for(int j=0; j < n_large_cells * n_rep; ++j)
     {
       mean_max_rad += max_rw[i][j];
@@ -455,11 +467,14 @@ int main(){
     }
     for(int j=0; j < n_cell * n_rep; ++j)
     {
-      mean_max_vol += max_rw_cubed[i][j];
+      mean_max_vol_small += pow(max_rw_small[i][j], 3.);
+      mean_max_rad_small += max_rw_small[i][j];
     }
 
+
     mean_max_rad /= float(n_large_cells * n_rep);
-    mean_max_vol /= float(n_cell * n_rep);
+    mean_max_rad_small /= float(n_cell * n_rep);
+    mean_max_vol_small /= float(n_cell * n_rep);
 
     for(int j=0; j < n_large_cells * n_rep; ++j)
     {
@@ -467,15 +482,22 @@ int main(){
     }
     for(int j=0; j < n_cell * n_rep; ++j)
     {
-      std_dev_max_vol += std::pow(max_rw_cubed[i][j] / mean_max_vol - 1, 2); // relative std dev of mass of largest one
+      std_dev_max_vol_small += std::pow(pow(max_rw_small[i][j], 3.) / mean_max_vol_small - 1, 2); // relative std dev of mass of largest one
+      std_dev_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 2); 
+      skew_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 3); 
+      kurt_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 4); 
     }
 
-    std_dev_max_vol = std::sqrt(std_dev_max_vol / (n_cell * n_rep-1));
-    std_dev_max_rad = std::sqrt(std_dev_max_rad / (n_large_cells * n_rep-1));
+    kurt_max_rad_small = kurt_max_rad_small / (n_cell * n_rep) / pow(std_dev_max_rad_small / (n_cell * n_rep), 2.);
+    std_dev_max_vol_small = std::sqrt(std_dev_max_vol_small / (n_cell * n_rep-1));
+    std_dev_max_rad_small = std::sqrt(std_dev_max_rad_small / (n_cell * n_rep-1));
+    skew_max_rad_small = skew_max_rad_small / (n_cell * n_rep) / pow(std_dev_max_rad_small, 3.);
 
+    std_dev_max_rad = std::sqrt(std_dev_max_rad / (n_large_cells * n_rep-1));
     
-    
-    of_max_drop_vol << i * dt << " " << mean_max_vol << " " << std_dev_max_vol << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << pow(max_rw_cubed[i][max_growth_idx], 1./3.) << std::endl; // save mean and relative std_dev
+    // 1 - time 2,3 - mean_max_vol_small 4,5 - mean_max_rad(large) 6 - glob max rad 7 - max growth rw
+    // 8 - mean max rw small 9 - std dev max rw small 10 - skew max rw small 11 - kurt max rw small
+    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << std::endl; 
   }
 
   // calc and print out mean t10 and t10 std_dev
