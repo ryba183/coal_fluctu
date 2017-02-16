@@ -45,12 +45,12 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 1e0; // number of repetitions of simulation
-const int sim_time=6500; //2500;//500;//2500; // 2500 steps
-const int nx = 1e3;  // total number of collision cells
-const float dt = 1;
-const float Np = 1e3; // number of droplets per simulation (collision cell)
-const float Np_in_avg_r_max_cell = 1e6; // number of droplets per large cells in which we look for r_max
+const int n_rep = 1e2; // number of repetitions of simulation
+const int sim_time=1500; //2500;//500;//2500; // 2500 steps
+const int nx = 1e2;  // total number of collision cells
+const float dt = 10;
+const float Np = 1e5; // number of droplets per simulation (collision cell)
+const float Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
   const float dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
@@ -59,7 +59,7 @@ const float Np_in_avg_r_max_cell = 1e6; // number of droplets per large cells in
   const float dx = 10000e-6; // for bi-disperse (alfonso) comparison
 #endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
-const int dev_id=0;
+const int dev_id=1;
 const int sstp_coal = 1;
 
 const int ny = 1;
