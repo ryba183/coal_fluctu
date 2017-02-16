@@ -45,11 +45,11 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 1e2; // number of repetitions of simulation
-const int sim_time=1500; //2500;//500;//2500; // 2500 steps
-const int nx = 1e2;  // total number of collision cells
-const float dt = 10;
-const float Np = 1e5; // number of droplets per simulation (collision cell)
+const int n_rep = 1e1; // number of repetitions of simulation
+const int sim_time=2500; //2500;//500;//2500; // 2500 steps
+const int nx = 1e3;  // total number of collision cells
+const float dt = 1;
+const float Np = 1e4; // number of droplets per simulation (collision cell)
 const float Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -59,7 +59,7 @@ const float Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in
   const float dx = 10000e-6; // for bi-disperse (alfonso) comparison
 #endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
-const int dev_id=1;
+const int dev_id=0;
 const int sstp_coal = 1;
 
 const int ny = 1;
@@ -515,18 +515,18 @@ int main(){
     of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << std::endl; 
   }
 
-  // cailc how much the radius of the 1e-3 fraction of small cells increased!!
-  float ensf = nx * n_rep / 1e3;
+  // cailc how much the radius of the lucky fraction of small cells increased!!
+  float ensf = nx * n_rep / 1e2;
   int ens = int(ensf);
   std::sort(std::begin(max_rw_small[sim_time]), std::end(max_rw_small[sim_time]), std::greater<float>());
   float lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / float(ens);
-  cout << "ratoi of lucky 1e-3 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
+  cout << "ratoi of lucky 1e-2 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
 
-  // cailc how quickkly the 1e-3 fraction of small cells reached r_max=40um
+  // cailc how quickkly the lucky fraction of small cells reached r_max=40um
   std::sort(std::begin(t_max_40), std::end(t_max_40), std::less<float>());
   auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](float x) { return x != 0; });
   float lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / float(ens);
-  cout << "time for the luckiest 1e-3 to reach r=40um: " << lucky_mean_t_max_40 << endl; 
+  cout << "time for the luckiest 1e-2 to reach r=40um: " << lucky_mean_t_max_40 << endl; 
 
   // calc and print out mean t10 and t10 std_dev
   float mean_t10 = 0.;
