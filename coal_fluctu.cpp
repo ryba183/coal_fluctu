@@ -45,10 +45,10 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 1e2; // number of repetitions of simulation
-const int sim_time=1500; //2500;//500;//2500; // 2500 steps
+const int n_rep = 1e1; // number of repetitions of simulation
+const int sim_time=500; //2500;//500;//2500; // 2500 steps
 const int nx = 1e2;  // total number of collision cells
-const float dt = 10;
+const float dt = 1;
 const float Np = 1e5; // number of droplets per simulation (collision cell)
 const float Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
@@ -511,8 +511,8 @@ int main(){
     
     // 1 - time 2,3 - mean_max_vol_small 4,5 - mean_max_rad(large) 6 - glob max rad 7 - max growth rw
     // 8 - mean max rw small 9 - std dev max rw small 10 - skew max rw small 11 - kurt max rw small
-    // 12 - skew max rw large 13 - kurt max rw large
-    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << std::endl; 
+    // 12 - skew max rw large 13 - kurt max rw large 14 - tau(rain_mass/tot_mass)
+    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << " " << tau << std::endl; 
   }
 
   // cailc how much the radius of the 1e-3 fraction of small cells increased!!
