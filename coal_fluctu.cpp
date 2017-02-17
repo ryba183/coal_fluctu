@@ -18,7 +18,7 @@
 #include <libcloudph++/common/earth.hpp>
 
  #define Onishi
- #define cutoff
+// #define cutoff
 
 
 using namespace std;
@@ -30,14 +30,14 @@ namespace theta_dry = libcloudphxx::common::theta_dry;
 namespace lognormal = libcloudphxx::common::lognormal;
 
 const quantity<si::length, float>
-//  mean_rd1 = float(15e-6) * si::metres;  // Onishi
+  mean_rd1 = float(15e-6) * si::metres;  // Onishi
 //  mean_rd1 = float(0.02e-6) * si::metres;  // api_lgrngn
-  mean_rd1 = float(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
+//  mean_rd1 = float(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
 const quantity<si::dimensionless, float>
   sdev_rd1 = float(1.4);
 const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float>
-//  n1_stp = float(142e6) / si::cubic_metres; // Onishi? previous
-  n1_stp = float(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
+  n1_stp = float(142e6) / si::cubic_metres; // Onishi? previous
+//  n1_stp = float(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
 //  n1_stp = float(60e6) / si::cubic_metres; // api_lgrngn
 
 
@@ -46,10 +46,10 @@ std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
 const int n_rep = 1e0; // number of repetitions of simulation
-const int sim_time=5200; //2500;//500;//2500; // 2500 steps
+const int sim_time=1000; //2500;//500;//2500; // 2500 steps
 const int nx = 1e3;  // total number of collision cells
 const float dt = 1;
-const float Np = 1e4; // number of droplets per simulation (collision cell)
+const float Np = 1e2; // number of droplets per simulation (collision cell)
 const float Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -476,19 +476,20 @@ int main(){
     {
       mean_max_rad += max_rw[i][j];
       if(max_rw[i][j] > glob_max_rad) glob_max_rad = max_rw[i][j];
-      mean_tau += tau[i][j];
     }
     for(int j=0; j < n_cell * n_rep; ++j)
     {
       mean_max_vol_small += pow(max_rw_small[i][j], 3.);
       mean_max_rad_small += max_rw_small[i][j];
+      mean_tau += tau[i][j];
     }
 
 
     mean_max_rad /= float(n_large_cells * n_rep);
-    mean_tau /= float(n_large_cells * n_rep);
     mean_max_rad_small /= float(n_cell * n_rep);
     mean_max_vol_small /= float(n_cell * n_rep);
+    mean_tau /= float(n_cell * n_rep);
+
 
     for(int j=0; j < n_large_cells * n_rep; ++j)
     {
