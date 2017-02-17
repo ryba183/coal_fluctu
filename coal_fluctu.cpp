@@ -45,11 +45,11 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float
 std::array<float, 1201> rad_bins;
 int n_cell;
 float rho_stp_f;
-const int n_rep = 1e2; // number of repetitions of simulation
-const int sim_time=2300; //2500;//500;//2500; // 2500 steps
-const int nx = 1e2;  // total number of collision cells
+const int n_rep = 1e0; // number of repetitions of simulation
+const int sim_time=5200; //2500;//500;//2500; // 2500 steps
+const int nx = 1e3;  // total number of collision cells
 const float dt = 1;
-const float Np = 1e5; // number of droplets per simulation (collision cell)
+const float Np = 1e4; // number of droplets per simulation (collision cell)
 const float Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -59,7 +59,7 @@ const float Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in
   const float dx = 10000e-6; // for bi-disperse (alfonso) comparison
 #endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
-const int dev_id=1;
+const int dev_id=0;
 const int sstp_coal = 1;
 
 const int ny = 1;
@@ -462,9 +462,11 @@ int main(){
     float glob_max_rad = 0.;
     float mean_max_rad = 0.;
     float mean_max_vol_small = 0.;
+    float mean_tau = 0.;
     float std_dev_max_vol_small = 0.;
     float std_dev_max_rad = 0.;
     float std_dev_max_rad_small = 0.;
+    float std_dev_tau = 0.;
     double skew_max_rad_small = 0.;
     double kurt_max_rad_small = 0.;
     double skew_max_rad_large = 0.;
@@ -474,6 +476,7 @@ int main(){
     {
       mean_max_rad += max_rw[i][j];
       if(max_rw[i][j] > glob_max_rad) glob_max_rad = max_rw[i][j];
+      mean_tau += tau[i][j];
     }
     for(int j=0; j < n_cell * n_rep; ++j)
     {
@@ -483,6 +486,7 @@ int main(){
 
 
     mean_max_rad /= float(n_large_cells * n_rep);
+    mean_tau /= float(n_large_cells * n_rep);
     mean_max_rad_small /= float(n_cell * n_rep);
     mean_max_vol_small /= float(n_cell * n_rep);
 
@@ -496,6 +500,7 @@ int main(){
     {
       std_dev_max_vol_small += std::pow(pow(max_rw_small[i][j], 3.) / mean_max_vol_small - 1, 2); // relative std dev of mass of largest one
       std_dev_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 2); 
+      std_dev_tau += std::pow(tau[i][j] - mean_tau, 2); 
       skew_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 3); 
       kurt_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 4); 
     }
@@ -503,6 +508,7 @@ int main(){
     kurt_max_rad_small = kurt_max_rad_small / (n_cell * n_rep) / pow(std_dev_max_rad_small / (n_cell * n_rep), 2.);
     std_dev_max_vol_small = std::sqrt(std_dev_max_vol_small / (n_cell * n_rep-1));
     std_dev_max_rad_small = std::sqrt(std_dev_max_rad_small / (n_cell * n_rep-1));
+    std_dev_tau = std::sqrt(std_dev_tau / (n_cell * n_rep-1));
     skew_max_rad_small = skew_max_rad_small / (n_cell * n_rep) / pow(std_dev_max_rad_small, 3.);
 
     kurt_max_rad_large = kurt_max_rad_large / (n_large_cells * n_rep) / pow(std_dev_max_rad / (n_large_cells * n_rep), 2.);
@@ -511,8 +517,8 @@ int main(){
     
     // 1 - time 2,3 - mean_max_vol_small 4,5 - mean_max_rad(large) 6 - glob max rad 7 - max growth rw
     // 8 - mean max rw small 9 - std dev max rw small 10 - skew max rw small 11 - kurt max rw small
-    // 12 - skew max rw large 13 - kurt max rw large 14 - tau(rain_mass/tot_mass)
-    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << " " << tau << std::endl; 
+    // 12 - skew max rw large 13 - kurt max rw large 14 - mean tau(rain_mass/tot_mass) 15 - std_dev tau
+    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << " " << mean_tau << " " << std_dev_tau << std::endl; 
   }
 
   // cailc how much the radius of the lucky fraction of small cells increased!!
