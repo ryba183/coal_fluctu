@@ -18,7 +18,7 @@
 #include <libcloudph++/common/earth.hpp>
 
  #define Onishi
- #define cutoff
+// #define cutoff
 
 
 using namespace std;
@@ -29,46 +29,46 @@ namespace theta_std = libcloudphxx::common::theta_std;
 namespace theta_dry = libcloudphxx::common::theta_dry;
 namespace lognormal = libcloudphxx::common::lognormal;
 
-const quantity<si::length, float>
-//  mean_rd1 = float(15e-6) * si::metres;  // Onishi
-//  mean_rd1 = float(0.02e-6) * si::metres;  // api_lgrngn
-  mean_rd1 = float(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
-const quantity<si::dimensionless, float>
-  sdev_rd1 = float(1.4);
-const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, float>
-//  n1_stp = float(142e6) / si::cubic_metres; // Onishi? previous
-  n1_stp = float(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
-//  n1_stp = float(60e6) / si::cubic_metres; // api_lgrngn
+const quantity<si::length, double>
+//  mean_rd1 = double(15e-6) * si::metres;  // Onishi
+//  mean_rd1 = double(0.02e-6) * si::metres;  // api_lgrngn
+  mean_rd1 = double(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
+const quantity<si::dimensionless, double>
+  sdev_rd1 = double(1.4);
+const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, double>
+//  n1_stp = double(142e6) / si::cubic_metres; // Onishi? previous
+  n1_stp = double(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
+//  n1_stp = double(60e6) / si::cubic_metres; // api_lgrngn
 
 
 //globals
-std::array<float, 1201> rad_bins;
+std::array<double, 1201> rad_bins;
 int n_cell;
-float rho_stp_f;
-const int n_rep = 1e2; // number of repetitions of simulation
-const int sim_time=3000; //2500;//500;//2500; // 2500 steps
+double rho_stp_f;
+const int n_rep = 1e0; // number of repetitions of simulation
+const int sim_time=5000; //2500;//500;//2500; // 2500 steps
 const int nx = 1e2;  // total number of collision cells
-const float dt = 1;
-const float Np = 1e5; // number of droplets per simulation (collision cell)
-const float Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
+const double dt = 1;
+const double Np = 1e3; // number of droplets per simulation (collision cell)
+const double Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
-  const float dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
+  const double dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
 #else
   const int n_cells_per_avg_r_max_cell = 1; // r_max in each small cell separately
-  const float dx = 10000e-6; // for bi-disperse (alfonso) comparison
+  const double dx = 10000e-6; // for bi-disperse (alfonso) comparison
 #endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
-const int dev_id=2;
+const int dev_id=0;
 const int sstp_coal = 1;
 
 const int ny = 1;
 const int nz = 1;
-float cell_vol;
+double cell_vol;
 
- const int sd_const_multi = 1; const float sd_conc = 0; const bool tail = 0;
+ const int sd_const_multi = 1; const double sd_conc = 0; const bool tail = 0;
 
-//  const int sd_const_multi = 0; const float sd_conc = 1024; const bool tail = true;
+//  const int sd_const_multi = 0; const double sd_conc = 1024; const bool tail = true;
 
 // lognormal aerosol distribution
 template <typename T>
@@ -77,8 +77,8 @@ struct log_dry_radii : public libcloudphxx::common::unary_function<T>
   T funval(const T lnrd) const
   {   
     return T(( 
-        lognormal::n_e(mean_rd1, sdev_rd1, n1_stp, quantity<si::dimensionless, float>(lnrd))
-      // +  lognormal::n_e(mean_rd2, sdev_rd2, n2_stp, quantity<si::dimensionless, float>(lnrd)) 
+        lognormal::n_e(mean_rd1, sdev_rd1, n1_stp, quantity<si::dimensionless, double>(lnrd))
+      // +  lognormal::n_e(mean_rd2, sdev_rd2, n2_stp, quantity<si::dimensionless, double>(lnrd)) 
       ) * si::cubic_metres
     );  
   }   
@@ -106,7 +106,7 @@ return (n1_stp * si::cubic_metres) * 3. * pow(r,3) / pow(mean_rd1 / si::metres, 
 
 void two_step(particles_proto_t<float> *prtcls, 
              arrinfo_t<float> th,
-     //        arrinfo_t<float> rhod,
+     //        arrinfo_t<double> rhod,
              arrinfo_t<float> rv,
              opts_t<float> opts)
 {
@@ -115,7 +115,7 @@ void two_step(particles_proto_t<float> *prtcls,
 }
 
 
-void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
+void diag(particles_proto_t<float> *prtcls, std::array<double, 1201> &res_bins)
 {
   prtcls->diag_sd_conc();
   std::cout << "sd conc: " << prtcls->outbuf()[0] << std::endl;
@@ -137,7 +137,7 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
 */
   prtcls->diag_all();
   prtcls->diag_wet_mom(3);
-  float sum = 0;
+  double sum = 0;
   auto out = prtcls->outbuf();
   for(int c=0; c < n_cell; ++c)
     sum += out[c];
@@ -152,8 +152,8 @@ void diag(particles_proto_t<float> *prtcls, std::array<float, 1201> &res_bins)
   //  prtcls->diag_wet_size_spectr( rad_bins[i], 0.62 ); //sigma0 = 0.62 like in Shima (2009)
     prtcls->diag_wet_rng(rad_bins[i], rad_bins[i+1]);
     prtcls->diag_wet_mom(0);
-    float rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
-    float mean = 0;
+    double rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
+    double mean = 0;
     auto buf = prtcls->outbuf();
     for(int c=0; c < n_cell; ++c)
     {
@@ -192,22 +192,22 @@ int main(){
   std::ofstream of_size_spectr("size_spectr.dat");
   std::ofstream of_max_drop_vol("max_drop_vol.dat");
 
-  std::array<float, nx> init_cloud_mass;
-  std::array<float, nx> init_rain_mass;
-  auto t10 = new float[nx * n_rep];
-  float t_max_40[nx * n_rep];// = new float[nx * n_rep];
-  //std::array<std::array<float, nx * n_rep>, sim_time> float tau; // ratio of rain mass to LWC
-  auto tau = new float[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
-  //std::array<std::array<float, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
-  auto max_rw = new float[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
-  auto max_rw_small = new float[sim_time+1][n_rep * nx]; // max rw^3 per small cells (to compare with Alfonso)
+  std::array<double, nx> init_cloud_mass;
+  std::array<double, nx> init_rain_mass;
+  auto t10 = new double[nx * n_rep];
+  double t_max_40[nx * n_rep];// = new double[nx * n_rep];
+  //std::array<std::array<double, nx * n_rep>, sim_time> double tau; // ratio of rain mass to LWC
+  auto tau = new double[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
+  //std::array<std::array<double, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
+  auto max_rw = new double[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
+  auto max_rw_small = new double[sim_time+1][n_rep * nx]; // max rw^3 per small cells (to compare with Alfonso)
 //  t10.fill(0.);
   for(int i=0; i<nx*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
 
-  std::vector<std::array<float, 1201>> res_bins_pre(n_rep);
-//  auto res_bins_pre = new float[n_rep][1201];
-  std::vector<std::array<float, 1201>> res_bins_post(n_rep);
-//  auto res_bins_post = new float[n_rep][1201];
+  std::vector<std::array<double, 1201>> res_bins_pre(n_rep);
+//  auto res_bins_pre = new double[n_rep][1201];
+  std::vector<std::array<double, 1201>> res_bins_post(n_rep);
+//  auto res_bins_post = new double[n_rep][1201];
   std::iota(rad_bins.begin(), rad_bins.end(), 0);
   for (auto &rad_bin : rad_bins)
   {
@@ -287,7 +287,7 @@ int main(){
   //  for (auto rad_bin : rad_bins)
     //  std::cout << rad_bin;
 //    boost::assign::ptr_map_insert<
-//      log_dry_radii<float> // value type
+//      log_dry_radii<double> // value type
 //    >(  
 //      opts_init.dry_distros // map
 //    )(  
@@ -314,7 +314,7 @@ int main(){
     );
   
     using libcloudphxx::common::earth::rho_stp;
-    rho_stp_f = (rho_stp<float>() / si::kilograms * si::cubic_metres);
+    rho_stp_f = (rho_stp<double>() / si::kilograms * si::cubic_metres);
 //    std::cout << "rho stp f = " << rho_stp_f << std::endl;
   
     std::array<float, 1> pth;
@@ -325,7 +325,7 @@ int main(){
     prhod.fill(rho_stp_f);
     prv.fill(.01);
   
-    long int strides[] = {/*sizeof(float)*/ 0, 0, 0};
+    long int strides[] = {/*sizeof(double)*/ 0, 0, 0};
   
     arrinfo_t<float> th(pth.data(), strides);
     arrinfo_t<float> rhod(prhod.data(), strides);
@@ -363,14 +363,14 @@ int main(){
       init_rain_mass[j] = arr[j];
     }
   
-    float rep_max_rw = 0.;
+    double rep_max_rw = 0.;
     // get max rw
     prtcls->diag_max_rw();
     arr = prtcls->outbuf();
     int large_cell_idx = -1;
     for(int j=0; j<n_cell; ++j)
     {
-//      float large_cell_max_rw;
+//      double large_cell_max_rw;
       if(j % n_cells_per_avg_r_max_cell == 0)
       {
   //      large_cell_max_rw = 0.;
@@ -392,7 +392,7 @@ int main(){
       int large_cell_idx = -1;
       for(int j=0; j<n_cell; ++j)
       {
-  //      float large_cell_max_rw;
+  //      double large_cell_max_rw;
         if(j % n_cells_per_avg_r_max_cell == 0)
         {
     //      large_cell_max_rw = 0.;
@@ -412,14 +412,14 @@ int main(){
       // get mean_sd_conc
       prtcls->diag_sd_conc();
       arr = prtcls->outbuf();
-      float mean_sd_conc = 0;
+      double mean_sd_conc = 0;
       for(int j=0; j<n_cell; ++j)
       {
         mean_sd_conc += arr[j]; 
       }
-      mean_sd_conc /= float(n_cell);
+      mean_sd_conc /= double(n_cell);
   
-  printf("\rrep no: %3d progress: %3d%%: rw_max %lf mean_sd_conc %lf", rep, int(float(i) / sim_time * 100), rep_max_rw, mean_sd_conc);
+  printf("\rrep no: %3d progress: %3d%%: rw_max %lf mean_sd_conc %lf", rep, int(double(i) / sim_time * 100), rep_max_rw, mean_sd_conc);
   std::cout << std::flush;
   
       // get t10 (time to conver 10% of cloud water into rain water)
@@ -444,11 +444,11 @@ int main(){
 
 
   // find history in which max_rw grew the most 
-    float max_growth=0.;
+    double max_growth=0.;
     int max_growth_idx;
     for(int j=0; j < n_cell * n_rep; ++j)
     {
-      float max_rw_local_growth = max_rw_small[sim_time][j] - max_rw_small[0][j];
+      double max_rw_local_growth = max_rw_small[sim_time][j] - max_rw_small[0][j];
       if(max_rw_local_growth > max_growth)
       {
         max_growth = max_rw_local_growth;
@@ -456,22 +456,22 @@ int main(){
       }
     }
 
-  float mean_max_rad_small = 0.;
+  double mean_max_rad_small = 0.;
   // calc and print max rw (and mass) stats
   for(int i=0; i<=sim_time; ++i)
   {
-    float glob_max_rad = 0.;
-    float mean_max_rad = 0.;
-    float mean_max_vol_small = 0.;
-    float mean_tau = 0.;
-    float std_dev_max_vol_small = 0.;
-    float std_dev_max_rad = 0.;
-    float std_dev_max_rad_small = 0.;
-    float std_dev_tau = 0.;
-    float skew_max_rad_small = 0.;
-    float kurt_max_rad_small = 0.;
-    float skew_max_rad_large = 0.;
-    float kurt_max_rad_large = 0.;
+    double glob_max_rad = 0.;
+    double mean_max_rad = 0.;
+    double mean_max_vol_small = 0.;
+    double mean_tau = 0.;
+    double std_dev_max_vol_small = 0.;
+    double std_dev_max_rad = 0.;
+    double std_dev_max_rad_small = 0.;
+    double std_dev_tau = 0.;
+    double skew_max_rad_small = 0.;
+    double kurt_max_rad_small = 0.;
+    double skew_max_rad_large = 0.;
+    double kurt_max_rad_large = 0.;
 
     for(int j=0; j < n_large_cells * n_rep; ++j)
     {
@@ -486,10 +486,10 @@ int main(){
     }
 
 
-    mean_max_rad /= float(n_large_cells * n_rep);
-    mean_max_rad_small /= float(n_cell * n_rep);
-    mean_max_vol_small /= float(n_cell * n_rep);
-    mean_tau /= float(n_cell * n_rep);
+    mean_max_rad /= double(n_large_cells * n_rep);
+    mean_max_rad_small /= double(n_cell * n_rep);
+    mean_max_vol_small /= double(n_cell * n_rep);
+    mean_tau /= double(n_cell * n_rep);
 
 
     for(int j=0; j < n_large_cells * n_rep; ++j)
@@ -526,82 +526,82 @@ int main(){
   // cailc how much the radius of the lucky fraction of small cells increased!!
 //all
   {
-    float ensf = nx * n_rep;
+    double ensf = nx * n_rep;
     int ens = int(ensf);
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    std::sort(std::begin(t_max_40), std::end(t_max_40), std::less<float>());
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](float x) { return x != 0; });
-    float lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / float(ens);
-    float sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    float stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+    std::sort(std::begin(t_max_40), std::end(t_max_40), std::less<double>());
+    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
+    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small mean sample!" << endl;
     cout << "mean time to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
   }
 //1e-1
   {
-    float ensf = nx * n_rep / 1e1;
+    double ensf = nx * n_rep / 1e1;
     int ens = int(ensf);
-    std::sort(std::begin(max_rw_small[sim_time]), std::end(max_rw_small[sim_time]), std::greater<float>());
-    float lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / float(ens);
+    std::sort(std::begin(max_rw_small[sim_time]), std::end(max_rw_small[sim_time]), std::greater<double>());
+    double lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / double(ens);
     cout << "ratoi of lucky 1e-1 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
 
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](float x) { return x != 0; });
-    float lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / float(ens);
-    float sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    float stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
+    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-1 sample!" << endl;
     cout << "time for the luckiest 1e-1 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
   }
 //1e-2
   {
-    float ensf = nx * n_rep / 1e2;
+    double ensf = nx * n_rep / 1e2;
     int ens = int(ensf);
-    float lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / float(ens);
+    double lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / double(ens);
     cout << "ratoi of lucky 1e-2 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
 
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](float x) { return x != 0; });
-    float lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / float(ens);
-    float sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    float stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
+    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-2 sample!" << endl;
     cout << "time for the luckiest 1e-2 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
   }
 //1e-3
   {
     // cailc how much the radius of the lucky fraction of small cells increased!!
-    float ensf = nx * n_rep / 1e3;
+    double ensf = nx * n_rep / 1e3;
     int ens = int(ensf);
-    float lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / float(ens);
+    double lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / double(ens);
     cout << "ratoi of lucky 1e-3 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
 
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](float x) { return x != 0; });
-    float lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / float(ens);
-    float sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    float stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
+    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-3 sample!" << endl;
     cout << "time for the luckiest 1e-3 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
   }
 //1e-4
   {
     // cailc how much the radius of the lucky fraction of small cells increased!!
-    float ensf = nx * n_rep / 1e4;
+    double ensf = nx * n_rep / 1e4;
     int ens = int(ensf);
-    float lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / float(ens);
+    double lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / double(ens);
     cout << "ratoi of lucky 1e-4 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
 
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](float x) { return x != 0; });
-    float lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / float(ens);
-    float sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    float stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
+    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-4 sample!" << endl;
     cout << "time for the luckiest 1e-4 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
   }
   // calc and print out mean t10 and t10 std_dev
-  float mean_t10 = 0.;
+  double mean_t10 = 0.;
   int t10_sims = 0;
   for(int j=0; j<n_cell * n_rep; ++j)
   {
@@ -613,7 +613,7 @@ int main(){
   }
   std::cout << "no. of cells that didn't reach t10%: " << n_cell * n_rep - t10_sims << std::endl;
   mean_t10/=t10_sims;//n_cell*n_rep;
-  float std_dev=0.;
+  double std_dev=0.;
   for(int j=0; j<n_cell*n_rep; ++j)
     std_dev += pow(t10[j] - mean_t10, 2);
   std_dev /= (t10_sims-1);
@@ -623,7 +623,7 @@ int main(){
 
   // calc and print out mean tau10 and tau10 std_dev
   const int mean_t10_idx = mean_t10 / dt + 0.5;
-  float mean = 0.;
+  double mean = 0.;
   if(mean_t10 > 0.)
   {
     for(int j=0; j<n_cell*n_rep; ++j)
@@ -648,8 +648,8 @@ int main(){
 // output
   for (int i=0; i <rad_bins.size() -1; ++i)
   {
-    float rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
-    float pre = 0, post = 0;
+    double rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
+    double pre = 0, post = 0;
     for(int j=0; j< n_rep; ++j)
     {
       pre += res_bins_pre[j][i];
