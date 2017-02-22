@@ -50,7 +50,7 @@ const int sim_time=5000; //2500;//500;//2500; // 2500 steps
 const int nx = 1e1;  // total number of collision cells
 const double dt = 1;
 const double Np = 1e5; // number of droplets per simulation (collision cell)
-const double Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
+const double Np_in_avg_r_max_cell = 1e6; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
   const double dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
@@ -545,6 +545,7 @@ int main(){
     double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
     double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
     double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+    cout << "first nonzero - begin: " << first_nonzero - begin(t_max_40) << endl;
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small mean sample!" << endl;
     cout << "mean time to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
   }
