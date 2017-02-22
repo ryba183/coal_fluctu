@@ -18,7 +18,7 @@
 #include <libcloudph++/common/earth.hpp>
 
  #define Onishi
-// #define cutoff
+ #define cutoff
 
 
 using namespace std;
@@ -46,11 +46,11 @@ std::array<double, 1201> rad_bins;
 int n_cell;
 double rho_stp_f;
 const int n_rep = 1e0; // number of repetitions of simulation
-const int sim_time=5000; //2500;//500;//2500; // 2500 steps
-const int nx = 1e1;  // total number of collision cells
+const int sim_time=10; //2500;//500;//2500; // 2500 steps
+const int nx = 1e4;  // total number of collision cells
 const double dt = 1;
-const double Np = 1e5; // number of droplets per simulation (collision cell)
-const double Np_in_avg_r_max_cell = 1e6; // number of droplets per large cells in which we look for r_max
+const double Np = 1e3; // number of droplets per simulation (collision cell)
+const double Np_in_avg_r_max_cell = 1e3; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
   const double dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
@@ -59,7 +59,7 @@ const double Np_in_avg_r_max_cell = 1e6; // number of droplets per large cells i
   const double dx = 10000e-6; // for bi-disperse (alfonso) comparison
 #endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
-const int dev_id=0;
+const int dev_id=1;
 const int sstp_coal = 1;
 
 const int ny = 1;
@@ -542,12 +542,16 @@ int main(){
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
     std::sort(std::begin(t_max_40), std::end(t_max_40), std::less<double>());
     auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
-    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
-    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     cout << "first nonzero - begin: " << first_nonzero - begin(t_max_40) << endl;
-    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small mean sample!" << endl;
-    cout << "mean time to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) 
+      cout << "too short simulation, too small mean sample!" << endl;
+    else
+    {
+      double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+      double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+      double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+      cout << "mean time to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    }
   }
 //1e-1
   {
@@ -559,11 +563,14 @@ int main(){
 
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
     auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
-    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
-    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-1 sample!" << endl;
-    cout << "time for the luckiest 1e-1 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    else
+    {
+      double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+      double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+      double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+      cout << "time for the luckiest 1e-1 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    }
   }
 //1e-2
   {
@@ -574,11 +581,13 @@ int main(){
 
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
     auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
-    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
-    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-2 sample!" << endl;
-    cout << "time for the luckiest 1e-2 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    else {
+      double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+      double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+      double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+      cout << "time for the luckiest 1e-2 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    }
   }
 //1e-3
   {
@@ -590,11 +599,13 @@ int main(){
 
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
     auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
-    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
-    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-3 sample!" << endl;
-    cout << "time for the luckiest 1e-3 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    else{
+      double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+      double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+      double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+      cout << "time for the luckiest 1e-3 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    }
   }
 //1e-4
   {
@@ -606,11 +617,13 @@ int main(){
 
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
     auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
-    double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
-    double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-    double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-4 sample!" << endl;
-    cout << "time for the luckiest 1e-4 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    {
+      double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
+      double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+      double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+      cout << "time for the luckiest 1e-4 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+    }
   }
   // calc and print out mean t10 and t10 std_dev
   double mean_t10 = 0.;
