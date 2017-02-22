@@ -47,9 +47,9 @@ int n_cell;
 double rho_stp_f;
 const int n_rep = 1e0; // number of repetitions of simulation
 const int sim_time=5000; //2500;//500;//2500; // 2500 steps
-const int nx = 1e2;  // total number of collision cells
+const int nx = 1e1;  // total number of collision cells
 const double dt = 1;
-const double Np = 1e3; // number of droplets per simulation (collision cell)
+const double Np = 1e5; // number of droplets per simulation (collision cell)
 const double Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -198,6 +198,7 @@ int main(){
   double t_max_40[nx * n_rep];// = new double[nx * n_rep];
   //std::array<std::array<double, nx * n_rep>, sim_time> double tau; // ratio of rain mass to LWC
   auto tau = new double[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
+  auto nrain = new double[sim_time+1][nx*n_rep]; // number of rain drops
   //std::array<std::array<double, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
   auto max_rw = new double[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
   auto max_rw_small = new double[sim_time+1][n_rep * nx]; // max rw^3 per small cells (to compare with Alfonso)
@@ -432,6 +433,12 @@ int main(){
           t10[j + rep * nx] = i * opts_init.dt;
         tau[i][j + rep * nx] = arr[j] / init_cloud_mass[j];
       }
+      prtcls->diag_wet_mom(0);
+      arr = prtcls->outbuf();
+      for(int j=0; j<n_cell; ++j)
+      {
+        nrain[i][j + rep * nx] = arr[j];
+      }
     }
   
     std::cout << std::endl << "po symulacji, max_rw: " << rep_max_rw << std::endl;
@@ -464,6 +471,7 @@ int main(){
     double mean_max_rad = 0.;
     double mean_max_vol_small = 0.;
     double mean_tau = 0.;
+    double mean_nrain = 0.;
     double std_dev_max_vol_small = 0.;
     double std_dev_max_rad = 0.;
     double std_dev_max_rad_small = 0.;
@@ -483,6 +491,7 @@ int main(){
       mean_max_vol_small += pow(max_rw_small[i][j], 3.);
       mean_max_rad_small += max_rw_small[i][j];
       mean_tau += tau[i][j];
+      mean_nrain += nrain[i][j];
     }
 
 
@@ -490,6 +499,7 @@ int main(){
     mean_max_rad_small /= double(n_cell * n_rep);
     mean_max_vol_small /= double(n_cell * n_rep);
     mean_tau /= double(n_cell * n_rep);
+    mean_nrain /= double(n_cell * n_rep);
 
 
     for(int j=0; j < n_large_cells * n_rep; ++j)
@@ -519,8 +529,9 @@ int main(){
     
     // 1 - time 2,3 - mean_max_vol_small 4,5 - mean_max_rad(large) 6 - glob max rad 7 - max growth rw
     // 8 - mean max rw small 9 - std dev max rw small 10 - skew max rw small 11 - kurt max rw small
-    // 12 - skew max rw large 13 - kurt max rw large 14 - mean tau(rain_mass/tot_mass) 15 - std_dev tau
-    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << " " << mean_tau << " " << std_dev_tau << std::endl; 
+    // 12 - skew max rw large 13 - kurt max rw large 14 - mean tau(rain_mass/tot_mass) 
+    // 15 - std_dev tau 16 - mean_nrain
+    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << " " << mean_tau << " " << std_dev_tau << " " << mean_nrain << std::endl; 
   }
 
   // cailc how much the radius of the lucky fraction of small cells increased!!
