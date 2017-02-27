@@ -45,12 +45,12 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, doubl
 std::array<double, 1201> rad_bins;
 int n_cell;
 double rho_stp_f;
-const int n_rep = 1e0; // number of repetitions of simulation
-const int sim_time=10; //2500;//500;//2500; // 2500 steps
+const int n_rep = 1e2; // number of repetitions of simulation
+const int sim_time=5000; //2500;//500;//2500; // 2500 steps
 const int nx = 1e4;  // total number of collision cells
 const double dt = 1;
 const double Np = 1e3; // number of droplets per simulation (collision cell)
-const double Np_in_avg_r_max_cell = 1e3; // number of droplets per large cells in which we look for r_max
+const double Np_in_avg_r_max_cell = 1e4; // number of droplets per large cells in which we look for r_max
 #ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
   const double dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
@@ -316,7 +316,6 @@ int main(){
   
     using libcloudphxx::common::earth::rho_stp;
     rho_stp_f = (rho_stp<double>() / si::kilograms * si::cubic_metres);
-//    std::cout << "rho stp f = " << rho_stp_f << std::endl;
   
     std::array<float, 1> pth;
     std::array<float, 1> prhod;
@@ -618,7 +617,7 @@ int main(){
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
     auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](double x) { return x != 0; });
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-4 sample!" << endl;
-    {
+    else {
       double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
       double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
       double stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
