@@ -17,8 +17,8 @@
 #include <time.h>
 #include <libcloudph++/common/earth.hpp>
 
- #define Onishi
- #define cutoff
+// #define Onishi
+// #define cutoff
 
 
 using namespace std;
@@ -32,34 +32,37 @@ namespace lognormal = libcloudphxx::common::lognormal;
 const quantity<si::length, double>
 //  mean_rd1 = double(15e-6) * si::metres;  // Onishi
 //  mean_rd1 = double(0.02e-6) * si::metres;  // api_lgrngn
-  mean_rd1 = double(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
+//  mean_rd1 = double(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
+  mean_rd1 = double(10.177e-6) * si::metres;  // Shima small
 const quantity<si::dimensionless, double>
   sdev_rd1 = double(1.4);
 const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, double>
 //  n1_stp = double(142e6) / si::cubic_metres; // Onishi? previous
-  n1_stp = double(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
+//  n1_stp = double(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
 //  n1_stp = double(60e6) / si::cubic_metres; // api_lgrngn
+  n1_stp = double(226.49e6) / si::cubic_metres; // Shima small
 
 
 //globals
-std::array<double, 1201> rad_bins;
+std::array<double, 10001> rad_bins;
 int n_cell;
 double rho_stp_f;
-const int n_rep = 1e2; // number of repetitions of simulation
-const int sim_time=5000; //2500;//500;//2500; // 2500 steps
-const int nx = 1e4;  // total number of collision cells
+const int n_rep = 1e0; // number of repetitions of simulation
+const int sim_time=2500; //2500;//500;//2500; // 2500 steps
+const int nx = 1e2;  // total number of collision cells
 const double dt = 1;
-const double Np = 1e3; // number of droplets per simulation (collision cell)
-const double Np_in_avg_r_max_cell = 1e4; // number of droplets per large cells in which we look for r_max
-#ifdef Onishi
-  const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
-  const double dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
-#else
+const double Np = 74000; // number of droplets per simulation (collision cell)
+const double Np_in_avg_r_max_cell = 74000; // number of droplets per large cells in which we look for r_max
+//#ifdef Onishi
+//  const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
+//  const double dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
+//#else
   const int n_cells_per_avg_r_max_cell = 1; // r_max in each small cell separately
   const double dx = 10000e-6; // for bi-disperse (alfonso) comparison
-#endif
+//  const double dx = 1e6; // for Shima comparison
+//#endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
-const int dev_id=1;
+const int dev_id=0;
 const int sstp_coal = 1;
 
 const int ny = 1;
@@ -68,7 +71,7 @@ double cell_vol;
 
  const int sd_const_multi = 1; const double sd_conc = 0; const bool tail = 0;
 
-//  const int sd_const_multi = 0; const double sd_conc = 1024; const bool tail = true;
+//  const int sd_const_multi = 0; const double sd_conc = pow(2,17); const bool tail = true;
 
 // lognormal aerosol distribution
 template <typename T>
@@ -104,18 +107,18 @@ return (n1_stp * si::cubic_metres) * 3. * pow(r,3) / pow(mean_rd1 / si::metres, 
   { return new exp_dry_radii( *this ); }
 };  
 
-void two_step(particles_proto_t<float> *prtcls, 
-             arrinfo_t<float> th,
+void two_step(particles_proto_t<double> *prtcls, 
+             arrinfo_t<double> th,
      //        arrinfo_t<double> rhod,
-             arrinfo_t<float> rv,
-             opts_t<float> opts)
+             arrinfo_t<double> rv,
+             opts_t<double> opts)
 {
     prtcls->step_sync(opts,th,rv);//,rhod);
     prtcls->step_async(opts);
 }
 
 
-void diag(particles_proto_t<float> *prtcls, std::array<double, 1201> &res_bins)
+void diag(particles_proto_t<double> *prtcls, std::array<double, 10001> &res_bins)
 {
   prtcls->diag_sd_conc();
   std::cout << "sd conc: " << prtcls->outbuf()[0] << std::endl;
@@ -205,10 +208,10 @@ int main(){
 //  t10.fill(0.);
   for(int i=0; i<nx*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
 
-  std::vector<std::array<double, 1201>> res_bins_pre(n_rep);
-//  auto res_bins_pre = new double[n_rep][1201];
-  std::vector<std::array<double, 1201>> res_bins_post(n_rep);
-//  auto res_bins_post = new double[n_rep][1201];
+  std::vector<std::array<double, 10001>> res_bins_pre(n_rep);
+//  auto res_bins_pre = new double[n_rep][10001];
+  std::vector<std::array<double, 10001>> res_bins_post(n_rep);
+//  auto res_bins_post = new double[n_rep][10001];
   std::iota(rad_bins.begin(), rad_bins.end(), 0);
   for (auto &rad_bin : rad_bins)
   {
@@ -245,16 +248,17 @@ int main(){
   // repetitions loop
   for(int rep = 0; rep < n_rep; ++rep)
   {
-    opts_init_t<float> opts_init;
+    opts_init_t<double> opts_init;
   
     opts_init.dev_id=dev_id;
     opts_init.dt=dt;
     opts_init.sstp_coal = sstp_coal; 
     opts_init.sstp_cond = 1; 
 //    opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
-  //  opts_init.kernel = kernel_t::hall;
-    opts_init.kernel = kernel_t::hall_davis_no_waals;
-//    opts_init.kernel = kernel_t::Long;
+//    opts_init.kernel = kernel_t::hall;
+//    opts_init.kernel = kernel_t::hall_davis_no_waals;
+    opts_init.kernel = kernel_t::Long;
+  //  opts_init.kernel = kernel_t::geometric;
 
     opts_init.terminal_velocity = vt_t::beard76;
   //  opts_init.terminal_velocity = vt_t::beard77fast;
@@ -297,7 +301,7 @@ int main(){
 
 #ifdef Onishi
     boost::assign::ptr_map_insert<
-      exp_dry_radii<float> // value type
+      exp_dry_radii<double> // value type
     >(  
       opts_init.dry_distros // map
     )(  
@@ -307,9 +311,9 @@ int main(){
     opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
 #endif
   
-    std::unique_ptr<particles_proto_t<float>> prtcls(
-      factory<float>(
-        (backend_t)CUDA, 
+    std::unique_ptr<particles_proto_t<double>> prtcls(
+      factory<double>(
+        (backend_t)OpenMP, 
         opts_init
       )
     );
@@ -317,9 +321,9 @@ int main(){
     using libcloudphxx::common::earth::rho_stp;
     rho_stp_f = (rho_stp<double>() / si::kilograms * si::cubic_metres);
   
-    std::array<float, 1> pth;
-    std::array<float, 1> prhod;
-    std::array<float, 1> prv;
+    std::array<double, 1> pth;
+    std::array<double, 1> prhod;
+    std::array<double, 1> prv;
   
     pth.fill(300.);
     prhod.fill(rho_stp_f);
@@ -327,13 +331,13 @@ int main(){
   
     long int strides[] = {/*sizeof(double)*/ 0, 0, 0};
   
-    arrinfo_t<float> th(pth.data(), strides);
-    arrinfo_t<float> rhod(prhod.data(), strides);
-    arrinfo_t<float> rv(prv.data(), strides);
+    arrinfo_t<double> th(pth.data(), strides);
+    arrinfo_t<double> rhod(prhod.data(), strides);
+    arrinfo_t<double> rv(prv.data(), strides);
   
     prtcls->init(th,rv,rhod);
   
-    opts_t<float> opts;
+    opts_t<double> opts;
     opts.adve = 0;
     opts.sedi = 0;
     opts.cond = 0;
@@ -544,7 +548,8 @@ int main(){
     cout << "first nonzero - begin: " << first_nonzero - begin(t_max_40) << endl;
     if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) 
       cout << "too short simulation, too small mean sample!" << endl;
-    else
+    //else
+    ens = end(t_max_40) - first_nonzero;
     {
       double lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / double(ens);
       double sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
