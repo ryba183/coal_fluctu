@@ -270,9 +270,9 @@ int main(){
     opts_init.sstp_coal = sstp_coal; 
     opts_init.sstp_cond = 1; 
 //    opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
-//    opts_init.kernel = kernel_t::hall;
+    opts_init.kernel = kernel_t::hall;
 //    opts_init.kernel = kernel_t::hall_davis_no_waals;
-    opts_init.kernel = kernel_t::Long;
+//    opts_init.kernel = kernel_t::Long;
   //  opts_init.kernel = kernel_t::geometric;
 
     opts_init.terminal_velocity = vt_t::beard76;
