@@ -19,6 +19,7 @@
 
 // #define Onishi
 // #define cutoff
+#define HIST_BINS 10001
 
 
 using namespace std;
@@ -44,12 +45,12 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, doubl
 
 
 //globals
-std::array<double, 10001> rad_bins;
+std::array<double, HIST_BINS> rad_bins;
 int n_cell;
 double rho_stp_f;
 const int n_rep = 1e0; // number of repetitions of simulation
 const int sim_time=2500; //2500;//500;//2500; // 2500 steps
-const int nx = 1e2;  // total number of collision cells
+const int nx = 1e5;  // total number of collision cells
 const double dt = 1;
 const double Np = 74000; // number of droplets per simulation (collision cell)
 const double Np_in_avg_r_max_cell = 74000; // number of droplets per large cells in which we look for r_max
@@ -58,7 +59,7 @@ const double Np_in_avg_r_max_cell = 74000; // number of droplets per large cells
 //  const double dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
 //#else
   const int n_cells_per_avg_r_max_cell = 1; // r_max in each small cell separately
-  const double dx = 10000e-6; // for bi-disperse (alfonso) comparison
+  const double dx = 1e-6; // for bi-disperse (alfonso) comparison
 //  const double dx = 1e6; // for Shima comparison
 //#endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
@@ -118,7 +119,7 @@ void two_step(particles_proto_t<double> *prtcls,
 }
 
 
-void diag(particles_proto_t<double> *prtcls, std::array<double, 10001> &res_bins)
+void diag(particles_proto_t<double> *prtcls, std::array<double, HIST_BINS> &res_bins, std::array<double, HIST_BINS> &res_stddev_bins)
 {
   prtcls->diag_sd_conc();
   std::cout << "sd conc: " << prtcls->outbuf()[0] << std::endl;
@@ -163,11 +164,23 @@ void diag(particles_proto_t<double> *prtcls, std::array<double, 10001> &res_bins
 //      std::cout << buf[c] << " ";
       mean += buf[c];
     }
-    mean = mean * rho_stp_f / n_cell; // mean number of droplets of radius rad [1/m^3]
+    mean /= n_cell;
+
+    double std_dev = 0;
+    for(int c=0; c < n_cell; ++c)
+    {
+      std_dev += pow(buf[c] - mean, 2.);
+    }
+    std_dev = sqrt(std_dev / n_cell);
+
+    mean = mean * rho_stp_f; // mean number of droplets of radius rad [1/m^3]
+    std_dev *= rho_stp_f;
     
     // to get mass in bins in [g/cm^3]
     
     res_bins[i]= mean / 1e6 // now its number per cm^3
+                     * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
+    res_stddev_bins[i]= std_dev / 1e6 // now its number per cm^3
                      * 3.14 *4. / 3. *rad * rad * rad * 1e3 * 1e3;  // to get mass in grams
     
 
@@ -208,10 +221,12 @@ int main(){
 //  t10.fill(0.);
   for(int i=0; i<nx*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
 
-  std::vector<std::array<double, 10001>> res_bins_pre(n_rep);
-//  auto res_bins_pre = new double[n_rep][10001];
-  std::vector<std::array<double, 10001>> res_bins_post(n_rep);
-//  auto res_bins_post = new double[n_rep][10001];
+  std::vector<std::array<double, HIST_BINS>> res_bins_pre(n_rep);
+  std::vector<std::array<double, HIST_BINS>> res_stddev_bins_pre(n_rep);
+//  auto res_bins_pre = new double[n_rep][HIST_BINS];
+  std::vector<std::array<double, HIST_BINS>> res_bins_post(n_rep);
+  std::vector<std::array<double, HIST_BINS>> res_stddev_bins_post(n_rep);
+//  auto res_bins_post = new double[n_rep][HIST_BINS];
   std::iota(rad_bins.begin(), rad_bins.end(), 0);
   for (auto &rad_bin : rad_bins)
   {
@@ -346,7 +361,9 @@ int main(){
   
     std::fill(res_bins_pre[rep].begin(), res_bins_pre[rep].end(), 0.);
     std::fill(res_bins_post[rep].begin(), res_bins_post[rep].end(), 0.);
-    diag(prtcls.get(), res_bins_pre[rep]);
+    std::fill(res_stddev_bins_pre[rep].begin(), res_stddev_bins_pre[rep].end(), 0.);
+    std::fill(res_stddev_bins_post[rep].begin(), res_stddev_bins_post[rep].end(), 0.);
+    diag(prtcls.get(), res_bins_pre[rep], res_stddev_bins_pre[rep]);
   
   //  prtcls->step_sync(opts,th,rv);//,rhod);
   //  cout << prtcls->step_async(opts) << endl;
@@ -446,7 +463,7 @@ int main(){
   
     std::cout << std::endl << "po symulacji, max_rw: " << rep_max_rw << std::endl;
   
-    diag(prtcls.get(), res_bins_post[rep]);
+    diag(prtcls.get(), res_bins_post[rep], res_stddev_bins_post[rep]);
     std::cout << std::endl;
 //    auto raw_ptr = prtcls.release();
 //    delete raw_ptr;
@@ -678,15 +695,17 @@ int main(){
   for (int i=0; i <rad_bins.size() -1; ++i)
   {
     double rad = (rad_bins[i] + rad_bins[i+1]) / 2.;
-    double pre = 0, post = 0;
+    double pre = 0, post = 0, stddev_post = 0;
     for(int j=0; j< n_rep; ++j)
     {
       pre += res_bins_pre[j][i];
       post += res_bins_post[j][i];
+      stddev_post += res_stddev_bins_post[j][i];
     }
     pre /= n_rep;
     post /= n_rep;
-    of_size_spectr << rad * 1e6 << " " << pre << " " << post << std::endl; 
+    stddev_post /= n_rep;
+    of_size_spectr << rad * 1e6 << " " << pre << " " << post << " " << stddev_post << std::endl; 
   }
 
 //  debug::print(prtcls->impl->n);
