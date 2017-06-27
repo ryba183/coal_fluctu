@@ -17,17 +17,17 @@
 #include <time.h>
 #include <libcloudph++/common/earth.hpp>
 
-// #define Onishi
-// #define cutoff
-#define HIST_BINS 61
-#define BACKEND OpenMP
-#define N_SD_MAX 3e6 //1e8
+ #define Onishi
+ #define cutoff
+#define HIST_BINS 5001
+#define BACKEND CUDA
+#define N_SD_MAX 1e8 //1e8
 
 
 using namespace std;
 using namespace libcloudphxx::lgrngn;
 
-using real_t = double;
+using real_t = float;
 
 namespace hydrostatic = libcloudphxx::common::hydrostatic;
 namespace theta_std = libcloudphxx::common::theta_std;
@@ -37,15 +37,15 @@ namespace lognormal = libcloudphxx::common::lognormal;
 const quantity<si::length, real_t>
 //  mean_rd1 = real_t(15e-6) * si::metres;  // Onishi
 //  mean_rd1 = real_t(0.02e-6) * si::metres;  // api_lgrngn
-//  mean_rd1 = real_t(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
-  mean_rd1 = real_t(10.177e-6) * si::metres;  // Shima small
+  mean_rd1 = real_t(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
+//  mean_rd1 = real_t(10.177e-6) * si::metres;  // Shima small
 const quantity<si::dimensionless, real_t>
   sdev_rd1 = real_t(1.4);
 const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, real_t>
-//  n1_stp = real_t(142e6) / si::cubic_metres; // Onishi? previous
-//  n1_stp = real_t(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
+//  n1_stp = real_t(142e6) / si::cubic_metres; // Onishi
+  n1_stp = real_t(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
 //  n1_stp = real_t(60e6) / si::cubic_metres; // api_lgrngn
-  n1_stp = real_t(226.49e6) / si::cubic_metres; // Shima small
+//  n1_stp = real_t(226.49e6) / si::cubic_metres; // Shima small
 
 
 //globals
@@ -53,17 +53,17 @@ std::array<real_t, HIST_BINS> rad_bins;
 int n_cell;
 real_t rho_stp_f;
 const int n_rep = 1e0; // number of repetitions of simulation
-const int sim_time=2500; //2500;//500;//2500; // 2500 steps
-const int nx = 1e4;  // total number of collision cells
+const int sim_time=5000; //2500;//500;//2500; // 2500 steps
+const int nx = 1e2;  // total number of collision cells
 const real_t dt = 1;
-const real_t Np = 74000; // number of droplets per simulation (collision cell)
-const real_t Np_in_avg_r_max_cell = 74000; // number of droplets per large cells in which we look for r_max
+const real_t Np = 1e5; // number of droplets per simulation (collision cell)
+const real_t Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
 //#ifdef Onishi
-//  const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
-//  const real_t dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
+  const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
+  const real_t dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
 //#else
-  const int n_cells_per_avg_r_max_cell = 1; // r_max in each small cell separately
-  const real_t dx = 1e-6; // for bi-disperse (alfonso) comparison
+//  const int n_cells_per_avg_r_max_cell = 1; // r_max in each small cell separately
+//  const real_t dx = 1e-6; // for bi-disperse (alfonso) comparison
 //  const real_t dx = 1e6; // for Shima comparison
 //#endif
 const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
@@ -76,7 +76,7 @@ real_t cell_vol;
 
  const int sd_const_multi = 1; const real_t sd_conc = 0; const bool tail = 0;
 
-//  const int sd_const_multi = 0; const real_t sd_conc = pow(2,17); const bool tail = true;
+//  const int sd_const_multi = 0; const real_t sd_conc = 1e3; const bool tail = 1;
 
 // lognormal aerosol distribution
 template <typename T>
@@ -274,8 +274,8 @@ int main(){
     opts_init.sstp_coal = sstp_coal; 
     opts_init.sstp_cond = 1; 
 //    opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
-    opts_init.kernel = kernel_t::hall;
-//    opts_init.kernel = kernel_t::hall_davis_no_waals;
+//    opts_init.kernel = kernel_t::hall;
+    opts_init.kernel = kernel_t::hall_davis_no_waals;
 //    opts_init.kernel = kernel_t::Long;
   //  opts_init.kernel = kernel_t::geometric;
 
@@ -455,8 +455,13 @@ int main(){
       {
         if(t10[j + rep * nx] == 0. && arr[j] >= init_cloud_mass[j] * .1)
           t10[j + rep * nx] = i * opts_init.dt;
-        tau[i][j + rep * nx] = arr[j] / init_cloud_mass[j];
+        tau[i][j + rep * nx] = arr[j];// / init_cloud_mass[j];
       }
+      prtcls->diag_wet_rng(0, 1); // rain water (like in Onishi)
+      prtcls->diag_wet_mom(3);
+      arr = prtcls->outbuf();
+      for(int j=0; j<n_cell; ++j)
+        tau[i][j + rep * nx] /= arr[j]; // to avoid (small) variability in LWC?
       prtcls->diag_wet_mom(0);
       arr = prtcls->outbuf();
       for(int j=0; j<n_cell; ++j)
