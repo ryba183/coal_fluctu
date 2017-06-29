@@ -457,17 +457,19 @@ int main(){
           t10[j + rep * nx] = i * opts_init.dt;
         tau[i][j + rep * nx] = arr[j];// / init_cloud_mass[j];
       }
-      prtcls->diag_wet_rng(0, 1); // rain water (like in Onishi)
-      prtcls->diag_wet_mom(3);
-      arr = prtcls->outbuf();
-      for(int j=0; j<n_cell; ++j)
-        tau[i][j + rep * nx] /= arr[j]; // to avoid (small) variability in LWC?
+
       prtcls->diag_wet_mom(0);
       arr = prtcls->outbuf();
       for(int j=0; j<n_cell; ++j)
       {
         nrain[i][j + rep * nx] = arr[j];
       }
+
+      prtcls->diag_wet_rng(0, 1); 
+      prtcls->diag_wet_mom(3);
+      arr = prtcls->outbuf();
+      for(int j=0; j<n_cell; ++j)
+        tau[i][j + rep * nx] /= arr[j]; // to avoid (small) variability in LWC?
     }
   
     std::cout << std::endl << "po symulacji, max_rw: " << rep_max_rw << std::endl;
