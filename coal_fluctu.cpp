@@ -16,6 +16,7 @@
 #include <libcloudph++/common/unary_function.hpp>
 #include <time.h>
 #include <libcloudph++/common/earth.hpp>
+#include <numeric>
 
  #define Onishi
  #define cutoff
@@ -319,13 +320,11 @@ int main(){
 //    ); 
 
 #ifdef Onishi
-    boost::assign::ptr_map_insert<
-      exp_dry_radii<real_t> // value type
-    >(  
-      opts_init.dry_distros // map
-    )(  
-      0. // key
-    ); 
+    opts_init.dry_distros.emplace(
+      0., // key (kappa)
+      std::make_shared<exp_dry_radii<real_t>> () // value
+    );
+
 #else
     opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
 #endif
