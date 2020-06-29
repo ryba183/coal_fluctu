@@ -4,6 +4,8 @@
  * statistics of max_rw can be calcul;ated using larger cells, conataining more than one cimulation cell
 */
 
+// This code was used in the Dziekan & Pawlowska ACP (2017) paper
+
 #include <iostream>
 #include <fstream>
 #include <libcloudph++/lgrngn/factory.hpp>
