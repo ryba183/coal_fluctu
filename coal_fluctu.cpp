@@ -20,7 +20,7 @@
 #include <libcloudph++/common/earth.hpp>
 #include <numeric>
 
- #define Onishi
+// #define Onishi
  #define cutoff
 #define HIST_BINS 5001
 #define BACKEND CUDA
@@ -56,7 +56,7 @@ std::array<real_t, HIST_BINS> rad_bins;
 int n_cell;
 real_t rho_stp_f;
 const int n_rep = 1e0; // number of repetitions of simulation
-const int sim_time=5000; //2500;//500;//2500; // 2500 steps
+const int sim_time=1000; //2500;//500;//2500; // 2500 steps
 const int nx = 1e2;  // total number of collision cells
 const real_t dt = 1;
 const real_t Np = 1e5; // number of droplets per simulation (collision cell)
@@ -287,7 +287,7 @@ int main(){
     opts_init.dx = dx;
     opts_init.dy = 1;
     opts_init.dz = 1; 
-    cell_vol = opts_init.dx;
+    cell_vol = opts_init.dx * opts_init.dy * opts_init.dz;
   
     opts_init.sedi_switch=0;
     opts_init.src_switch=0;
@@ -328,7 +328,13 @@ int main(){
     );
 
 #else
-    opts_init.dry_sizes[0.] = {{17e-6, 20e6}, {21.4e-6, 10e6}};
+    opts_init.dry_sizes.emplace(
+      0., // key (kappa)
+      std::map<real_t, std::pair<real_t, int> > {
+        {17e-6, {20e6, 20e6 * cell_vol}}, // radius, STP concentration, number of SD
+        {21.4e-6, {10e6, 10e6 * cell_vol}}, // radius, STP concentration, number of SD
+      }
+    );
 #endif
   
     std::unique_ptr<particles_proto_t<real_t>> prtcls(
