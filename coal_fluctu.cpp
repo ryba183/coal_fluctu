@@ -62,7 +62,7 @@ const int nz = NXNYNZ;
 const int n_cell = nx * ny * nz;
 
 const real_t dt = 0.1;
-const real_t Np = 10; // number of droplets per simulation (collision cell)
+const real_t Np = 1; // number of droplets per simulation (collision cell)
 const real_t Np_in_avg_r_max_cell = Np; // number of droplets per large cells in which we look for r_max
 //#ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -252,8 +252,8 @@ int main(){
   std::ofstream of_size_spectr("size_spectr.dat");
   std::ofstream of_max_drop_vol("max_drop_vol.dat");
 
-  std::array<real_t, n_cell> init_cloud_mass;
-  std::array<real_t, n_cell> init_rain_mass;
+  std::vector<real_t> init_cloud_mass(n_cell);
+  std::vector<real_t> init_rain_mass(n_cell);
   real_t init_tot_cloud_mass;
   real_t init_tot_rain_mass;
   auto t10 = new real_t[n_cell * n_rep];
