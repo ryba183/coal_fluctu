@@ -4,8 +4,6 @@
  * statistics of max_rw can be calcul;ated using larger cells, conataining more than one cimulation cell
 */
 
-// This code was used in the Dziekan & Pawlowska ACP (2017) paper
-
 #include <iostream>
 #include <fstream>
 #include <libcloudph++/lgrngn/factory.hpp>
@@ -22,13 +20,12 @@
 
  #define Onishi
 // #define cutoff
+// #define HallDavis
+
 #define HIST_BINS 5001
 #define BACKEND CUDA
 #define N_SD_MAX 1e8 //1e8
-#define NXNYNZ 20
-
-//#define HallDavis
-
+#define NXNYNZ 100
 
 using namespace std;
 using namespace libcloudphxx::lgrngn;
@@ -57,15 +54,15 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, real_
 //globals
 std::array<real_t, HIST_BINS> rad_bins;
 real_t rho_stp_f;
-const int n_rep = 1e0; // number of repetitions of simulation
-const int sim_time=1000; //2500;//500;//2500; // 2500 steps
+const int n_rep = 2e0; // number of repetitions of simulation
+const int sim_time=3000; //2500;//500;//2500; // 2500 steps
 const int nx = NXNYNZ; // total number of collision cells
 const int ny = NXNYNZ;
 const int nz = NXNYNZ;
 const int n_cell = nx * ny * nz;
 
-const real_t dt = 1;
-const real_t Np = 5e2; // number of droplets per simulation (collision cell)
+const real_t dt = 0.1;
+const real_t Np = 10; // number of droplets per simulation (collision cell)
 const real_t Np_in_avg_r_max_cell = Np; // number of droplets per large cells in which we look for r_max
 //#ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -212,6 +209,7 @@ void diag(particles_proto_t<real_t> *prtcls, std::array<real_t, HIST_BINS> &res_
 
 
 int main(){
+  std::cerr << "main start" << std::endl;
   // sanity check
 #ifdef Onishi
   if(n_cells_per_avg_r_max_cell * Np != Np_in_avg_r_max_cell)
@@ -220,34 +218,6 @@ int main(){
     throw std::runtime_error("n_cell nie jest wilokrotnoscia n_cells_per_avg_r_max_cell");
 #endif
 
-  std::ofstream of_size_spectr("size_spectr.dat");
-  std::ofstream of_max_drop_vol("max_drop_vol.dat");
-
-  std::array<real_t, n_cell> init_cloud_mass;
-  std::array<real_t, n_cell> init_rain_mass;
-  auto t10 = new real_t[n_cell * n_rep];
-  real_t t_max_40[n_cell * n_rep];// = new real_t[n_cell * n_rep];
-  //std::array<std::array<real_t, n_cell * n_rep>, sim_time> real_t tau; // ratio of rain mass to LWC
-  auto tau = new real_t[sim_time+1][n_cell*n_rep]; // ratio of rain mass to LWC
-  auto nrain = new real_t[sim_time+1][n_cell*n_rep]; // number of rain drops
-  //std::array<std::array<real_t, n_cell * n_rep>, sim_time> max_rw; // max wet radius in cell
-  auto max_rw = new real_t[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
-  auto max_rw_small = new real_t[sim_time+1][n_rep * n_cell]; // max rw^3 per small cells (to compare with Alfonso)
-//  t10.fill(0.);
-  for(int i=0; i<n_cell*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
-
-
-  std::vector<std::array<real_t, HIST_BINS>> res_bins_pre(n_rep);
-  std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_pre(n_rep);
-//  auto res_bins_pre = new real_t[n_rep][HIST_BINS];
-  std::vector<std::array<real_t, HIST_BINS>> res_bins_post(n_rep);
-  std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_post(n_rep);
-//  auto res_bins_post = new real_t[n_rep][HIST_BINS];
-  std::iota(rad_bins.begin(), rad_bins.end(), 0);
-  for (auto &rad_bin : rad_bins)
-  {
-    rad_bin = rad_bin * 1e-6;// + 10e-6; 
-  }
 #ifdef cutoff
   std::cout << "init distr cutoff at 20 microns!" << std::endl;
   //std::cout << "init distr cutoff at 40 microns!" << std::endl;
@@ -276,6 +246,40 @@ int main(){
             << " mean_rd1 = " << mean_rd1
             << " n1_stp = " << n1_stp
             << std::endl;
+
+  std::cout << std::flush;
+
+  std::ofstream of_size_spectr("size_spectr.dat");
+  std::ofstream of_max_drop_vol("max_drop_vol.dat");
+
+  std::array<real_t, n_cell> init_cloud_mass;
+  std::array<real_t, n_cell> init_rain_mass;
+  real_t init_tot_cloud_mass;
+  real_t init_tot_rain_mass;
+  auto t10 = new real_t[n_cell * n_rep];
+  auto t10_tot = new real_t[n_rep];
+  real_t t_max_40[n_cell * n_rep];// = new real_t[n_cell * n_rep];
+  //std::array<std::array<real_t, n_cell * n_rep>, sim_time> real_t tau; // ratio of rain mass to LWC
+  auto tau = new real_t[sim_time+1][n_cell*n_rep]; // ratio of rain mass to LWC
+  auto nrain = new real_t[sim_time+1][n_cell*n_rep]; // number of rain drops
+  //std::array<std::array<real_t, n_cell * n_rep>, sim_time> max_rw; // max wet radius in cell
+  auto max_rw = new real_t[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
+  auto max_rw_small = new real_t[sim_time+1][n_rep * n_cell]; // max rw^3 per small cells (to compare with Alfonso)
+//  t10.fill(0.);
+  for(int i=0; i<n_cell*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
+  for(int i=0; i<n_rep; ++i) {t10_tot[i]=0.;}
+
+  std::vector<std::array<real_t, HIST_BINS>> res_bins_pre(n_rep);
+  std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_pre(n_rep);
+//  auto res_bins_pre = new real_t[n_rep][HIST_BINS];
+  std::vector<std::array<real_t, HIST_BINS>> res_bins_post(n_rep);
+  std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_post(n_rep);
+//  auto res_bins_post = new real_t[n_rep][HIST_BINS];
+  std::iota(rad_bins.begin(), rad_bins.end(), 0);
+  for (auto &rad_bin : rad_bins)
+  {
+    rad_bin = rad_bin * 1e-6;// + 10e-6; 
+  }
 
   // repetitions loop
   for(int rep = 0; rep < n_rep; ++rep)
@@ -399,6 +403,9 @@ int main(){
   
   //  prtcls->step_sync(opts,th,rv);//,rhod);
   //  cout << prtcls->step_async(opts) << endl;
+
+    init_tot_cloud_mass = 0;
+    init_tot_rain_mass = 0;
   
     prtcls->diag_wet_rng(0, 40e-6); // cloud water (like in Onishi)
     prtcls->diag_wet_mom(3);
@@ -406,6 +413,7 @@ int main(){
     for(int j=0; j<n_cell; ++j)
     {
       init_cloud_mass[j] = arr[j];
+      init_tot_cloud_mass += arr[j];
     }
   
     prtcls->diag_wet_rng(40e-6, 1); // rain water (like in Onishi)
@@ -414,6 +422,7 @@ int main(){
     for(int j=0; j<n_cell; ++j)
     {
       init_rain_mass[j] = arr[j];
+      init_tot_rain_mass += arr[j];
     }
   
     real_t rep_max_rw = 0.;
@@ -473,19 +482,23 @@ int main(){
       }
       mean_sd_conc /= real_t(n_cell);
   
-  printf("\rrep no: %3d progress: %3d%%: rw_max %lf mean_sd_conc %lf", rep, int(real_t(i) / sim_time * 100), rep_max_rw, mean_sd_conc);
+  printf("\rrep no: %3d progress: %3d%%: rw_max %lf mean_sd_conc %lf t10_tot %lf", rep, int(real_t(i) / sim_time * 100), rep_max_rw, mean_sd_conc, t10_tot[rep]);
   std::cout << std::flush;
   
       // get t10 (time to conver 10% of cloud water into rain water)
       prtcls->diag_wet_rng(40e-6, 1); // rain water (like in Onishi)
       prtcls->diag_wet_mom(3);
       arr = prtcls->outbuf();
+      real_t cloud_mass_tot = 0;
       for(int j=0; j<n_cell; ++j)
       {
         if(t10[j + rep * n_cell] == 0. && arr[j] >= init_cloud_mass[j] * .1)
           t10[j + rep * n_cell] = i * opts_init.dt;
         tau[i][j + rep * n_cell] = arr[j];// / init_cloud_mass[j];
+        cloud_mass_tot += arr[j];
       }
+      if(t10_tot[rep] == 0. && cloud_mass_tot >= init_tot_cloud_mass * .1)
+        t10_tot[rep] =  i * opts_init.dt;
 
       prtcls->diag_wet_mom(0);
       arr = prtcls->outbuf();
@@ -706,6 +719,12 @@ int main(){
   std_dev = sqrt(std_dev);
   std::cout << "mean(t10%) = " << mean_t10 << std::endl;
   std::cout << "realtive std_dev(t10%) = " << std_dev / mean_t10 << std::endl;
+
+  real_t mean_t10_tot;
+  for(int j=0; j<n_rep; ++j)
+    mean_t10_tot += t10_tot[j];
+  mean_t10_tot /= n_rep;
+  std::cout << "mean(t10% in the domain) = " << mean_t10_tot << std::endl;
 
   // calc and print out mean tau10 and tau10 std_dev
   const int mean_t10_idx = mean_t10 / dt + 0.5;
