@@ -20,11 +20,12 @@
 #include <libcloudph++/common/earth.hpp>
 #include <numeric>
 
-// #define Onishi
- #define cutoff
+ #define Onishi
+// #define cutoff
 #define HIST_BINS 5001
 #define BACKEND CUDA
 #define N_SD_MAX 1e8 //1e8
+#define NXNYNZ 20
 
 
 using namespace std;
@@ -38,44 +39,47 @@ namespace theta_dry = libcloudphxx::common::theta_dry;
 namespace lognormal = libcloudphxx::common::lognormal;
 
 const quantity<si::length, real_t>
-//  mean_rd1 = real_t(15e-6) * si::metres;  // Onishi
+  mean_rd1 = real_t(15e-6) * si::metres;  // Onishi
 //  mean_rd1 = real_t(0.02e-6) * si::metres;  // api_lgrngn
-  mean_rd1 = real_t(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
+//  mean_rd1 = real_t(9.3e-6) * si::metres;  // WANG 2007 (and Unterstrasser 2017)
 //  mean_rd1 = real_t(10.177e-6) * si::metres;  // Shima small
 const quantity<si::dimensionless, real_t>
   sdev_rd1 = real_t(1.4);
 const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, real_t>
-//  n1_stp = real_t(142e6) / si::cubic_metres; // Onishi
-  n1_stp = real_t(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
+  n1_stp = real_t(142e6) / si::cubic_metres; // Onishi
+//  n1_stp = real_t(297e6) / si::cubic_metres; // WANG 2007 (and Unter 2017)
 //  n1_stp = real_t(60e6) / si::cubic_metres; // api_lgrngn
 //  n1_stp = real_t(226.49e6) / si::cubic_metres; // Shima small
 
 
 //globals
 std::array<real_t, HIST_BINS> rad_bins;
-int n_cell;
 real_t rho_stp_f;
 const int n_rep = 1e0; // number of repetitions of simulation
 const int sim_time=1000; //2500;//500;//2500; // 2500 steps
-const int nx = 1e2;  // total number of collision cells
+const int nx = NXNYNZ; // total number of collision cells
+const int ny = NXNYNZ;
+const int nz = NXNYNZ;
+const int n_cell = nx * ny * nz;
+
 const real_t dt = 1;
-const real_t Np = 1e5; // number of droplets per simulation (collision cell)
-const real_t Np_in_avg_r_max_cell = 1e5; // number of droplets per large cells in which we look for r_max
+const real_t Np = 1e2; // number of droplets per simulation (collision cell)
+const real_t Np_in_avg_r_max_cell = 1e2; // number of droplets per large cells in which we look for r_max
 //#ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
-  const real_t dx = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
+  const real_t cell_vol = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
+  const real_t dx = pow(cell_vol, real_t(1./3.));
+  const real_t dy = pow(cell_vol, real_t(1./3.));
+  const real_t dz = pow(cell_vol, real_t(1./3.));
 //#else
 //  const int n_cells_per_avg_r_max_cell = 1; // r_max in each small cell separately
 //  const real_t dx = 1e-6; // for bi-disperse (alfonso) comparison
 //  const real_t dx = 1e6; // for Shima comparison
 //#endif
-const int n_large_cells = nx / n_cells_per_avg_r_max_cell;
+const int n_large_cells = (nx * ny * nz) / n_cells_per_avg_r_max_cell;
 const int dev_id=0;
 const int sstp_coal = 1;
 
-const int ny = 1;
-const int nz = 1;
-real_t cell_vol;
 
  const int sd_const_multi = 1; const real_t sd_conc = 0; const bool tail = 0;
 
@@ -128,6 +132,7 @@ void two_step(particles_proto_t<real_t> *prtcls,
 
 void diag(particles_proto_t<real_t> *prtcls, std::array<real_t, HIST_BINS> &res_bins, std::array<real_t, HIST_BINS> &res_stddev_bins)
 {
+  prtcls->diag_all();
   prtcls->diag_sd_conc();
   std::cout << "sd conc: " << prtcls->outbuf()[0] << std::endl;
 
@@ -208,25 +213,25 @@ int main(){
 #ifdef Onishi
   if(n_cells_per_avg_r_max_cell * Np != Np_in_avg_r_max_cell)
     throw std::runtime_error("Np_in_avg_r_max_cell nie jest wilokrotnoscia Np");
-  if(n_large_cells * n_cells_per_avg_r_max_cell != nx)
-    throw std::runtime_error("nx nie jest wilokrotnoscia n_cells_per_avg_r_max_cell");
+  if(n_large_cells * n_cells_per_avg_r_max_cell != n_cell)
+    throw std::runtime_error("n_cell nie jest wilokrotnoscia n_cells_per_avg_r_max_cell");
 #endif
 
   std::ofstream of_size_spectr("size_spectr.dat");
   std::ofstream of_max_drop_vol("max_drop_vol.dat");
 
-  std::array<real_t, nx> init_cloud_mass;
-  std::array<real_t, nx> init_rain_mass;
-  auto t10 = new real_t[nx * n_rep];
-  real_t t_max_40[nx * n_rep];// = new real_t[nx * n_rep];
-  //std::array<std::array<real_t, nx * n_rep>, sim_time> real_t tau; // ratio of rain mass to LWC
-  auto tau = new real_t[sim_time+1][nx*n_rep]; // ratio of rain mass to LWC
-  auto nrain = new real_t[sim_time+1][nx*n_rep]; // number of rain drops
-  //std::array<std::array<real_t, nx * n_rep>, sim_time> max_rw; // max wet radius in cell
+  std::array<real_t, n_cell> init_cloud_mass;
+  std::array<real_t, n_cell> init_rain_mass;
+  auto t10 = new real_t[n_cell * n_rep];
+  real_t t_max_40[n_cell * n_rep];// = new real_t[n_cell * n_rep];
+  //std::array<std::array<real_t, n_cell * n_rep>, sim_time> real_t tau; // ratio of rain mass to LWC
+  auto tau = new real_t[sim_time+1][n_cell*n_rep]; // ratio of rain mass to LWC
+  auto nrain = new real_t[sim_time+1][n_cell*n_rep]; // number of rain drops
+  //std::array<std::array<real_t, n_cell * n_rep>, sim_time> max_rw; // max wet radius in cell
   auto max_rw = new real_t[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
-  auto max_rw_small = new real_t[sim_time+1][n_rep * nx]; // max rw^3 per small cells (to compare with Alfonso)
+  auto max_rw_small = new real_t[sim_time+1][n_rep * n_cell]; // max rw^3 per small cells (to compare with Alfonso)
 //  t10.fill(0.);
-  for(int i=0; i<nx*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
+  for(int i=0; i<n_cell*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
 
   std::vector<std::array<real_t, HIST_BINS>> res_bins_pre(n_rep);
   std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_pre(n_rep);
@@ -255,7 +260,7 @@ int main(){
 
   std::cout << "n_rep = " << n_rep 
             << " n_large_cells = " << n_large_cells
-            << " nx = " << nx
+            << " n_cell = " << n_cell
             << " sim_time = " << sim_time
             << " dt = " << dt
             << " sstp_coal = " << sstp_coal
@@ -285,9 +290,9 @@ int main(){
     opts_init.terminal_velocity = vt_t::beard76;
   //  opts_init.terminal_velocity = vt_t::beard77fast;
     opts_init.dx = dx;
-    opts_init.dy = 1;
-    opts_init.dz = 1; 
-    cell_vol = opts_init.dx * opts_init.dy * opts_init.dz;
+    opts_init.dy = dy;
+    opts_init.dz = dz; 
+  //  cell_vol = opts_init.dx * opts_init.dy * opts_init.dz;
   
     opts_init.sedi_switch=0;
     opts_init.src_switch=0;
@@ -295,14 +300,12 @@ int main(){
   
     opts_init.nx = nx; 
     opts_init.ny = ny; 
-    opts_init.nz = 1; 
+    opts_init.nz = nz; 
     opts_init.x1 = opts_init.nx * opts_init.dx;
     opts_init.y1 = opts_init.ny * opts_init.dy;
     opts_init.z1 = opts_init.nz * opts_init.dz;
     opts_init.rng_seed = time(NULL);
   
-    n_cell = opts_init.nx * opts_init.ny * opts_init.nz;
-
   
     opts_init.sd_conc = sd_conc;//int(1024);
     opts_init.sd_conc_large_tail = tail;
@@ -331,7 +334,7 @@ int main(){
     opts_init.dry_sizes.emplace(
       0., // key (kappa)
       std::map<real_t, std::pair<real_t, int> > {
-        {17e-6, {20e6, 20e6 * cell_vol}}, // radius, STP concentration, number of SD
+        {17e-6  , {20e6, 20e6 * cell_vol}}, // radius, STP concentration, number of SD
         {21.4e-6, {10e6, 10e6 * cell_vol}}, // radius, STP concentration, number of SD
       }
     );
@@ -437,11 +440,12 @@ int main(){
         max_rw_small[i][j + rep * n_cell] = arr[j];
 
         // get time for max_rw to reach 40um
-        if(t_max_40[j + rep * nx] == 0. && arr[j] >= 40e-6)
-          t_max_40[j + rep * nx] = i * opts_init.dt; 
+        if(t_max_40[j + rep * n_cell] == 0. && arr[j] >= 40e-6)
+          t_max_40[j + rep * n_cell] = i * opts_init.dt; 
       }
 
       // get mean_sd_conc
+      prtcls->diag_all();
       prtcls->diag_sd_conc();
       arr = prtcls->outbuf();
       real_t mean_sd_conc = 0;
@@ -460,23 +464,23 @@ int main(){
       arr = prtcls->outbuf();
       for(int j=0; j<n_cell; ++j)
       {
-        if(t10[j + rep * nx] == 0. && arr[j] >= init_cloud_mass[j] * .1)
-          t10[j + rep * nx] = i * opts_init.dt;
-        tau[i][j + rep * nx] = arr[j];// / init_cloud_mass[j];
+        if(t10[j + rep * n_cell] == 0. && arr[j] >= init_cloud_mass[j] * .1)
+          t10[j + rep * n_cell] = i * opts_init.dt;
+        tau[i][j + rep * n_cell] = arr[j];// / init_cloud_mass[j];
       }
 
       prtcls->diag_wet_mom(0);
       arr = prtcls->outbuf();
       for(int j=0; j<n_cell; ++j)
       {
-        nrain[i][j + rep * nx] = arr[j];
+        nrain[i][j + rep * n_cell] = arr[j];
       }
 
       prtcls->diag_wet_rng(0, 1); 
       prtcls->diag_wet_mom(3);
       arr = prtcls->outbuf();
       for(int j=0; j<n_cell; ++j)
-        tau[i][j + rep * nx] /= arr[j]; // to avoid (small) variability in LWC?
+        tau[i][j + rep * n_cell] /= arr[j]; // to avoid (small) variability in LWC?
     }
   
     std::cout << std::endl << "po symulacji, max_rw: " << rep_max_rw << std::endl;
@@ -575,7 +579,7 @@ int main(){
   // cailc how much the radius of the lucky fraction of small cells increased!!
 //all
   {
-    real_t ensf = nx * n_rep;
+    real_t ensf = n_cell * n_rep;
     int ens = int(ensf);
     // cailc how quickkly the lucky fraction of small cells reached r_max=40um
     std::sort(std::begin(t_max_40), std::end(t_max_40), std::less<real_t>());

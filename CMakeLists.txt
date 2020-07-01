@@ -11,6 +11,8 @@ endif()
 
 add_executable(coal_fluctu coal_fluctu.cpp)
 
+target_compile_features(coal_fluctu PUBLIC cxx_std_11)
+
 target_link_libraries(coal_fluctu
   PRIVATE
     clphxx::cloudphxx_lgrngn
