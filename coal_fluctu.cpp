@@ -27,6 +27,8 @@
 #define N_SD_MAX 1e8 //1e8
 #define NXNYNZ 20
 
+//#define HallDavis
+
 
 using namespace std;
 using namespace libcloudphxx::lgrngn;
@@ -63,8 +65,8 @@ const int nz = NXNYNZ;
 const int n_cell = nx * ny * nz;
 
 const real_t dt = 1;
-const real_t Np = 1e2; // number of droplets per simulation (collision cell)
-const real_t Np_in_avg_r_max_cell = 1e2; // number of droplets per large cells in which we look for r_max
+const real_t Np = 5e2; // number of droplets per simulation (collision cell)
+const real_t Np_in_avg_r_max_cell = Np; // number of droplets per large cells in which we look for r_max
 //#ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
   const real_t cell_vol = Np /  (n1_stp * si::cubic_metres); // for Onishi comparison
@@ -255,8 +257,9 @@ int main(){
   std::cout << "Np per avg cell = " << Np_in_avg_r_max_cell << std::endl;
 #else
   std::cout << "Alfonso (bi-disperse) run!" << std::endl;
-  std::cout << "dx = " << dx << " (cell vol = " << dx * 1e2 * 1e4 << " cm^3)"<< std::endl;
 #endif
+  std::cout << "dx = " << dx * 1e2  << "cm (cell vol = " << cell_vol * 1e6 << " cm^3)"<< std::endl;
+  std::cout << "x1 = " << dx * nx * 1e2  << "cm (domain vol = "<< dx * nx * dy * ny * dz * nz  << " m^3)" << std::endl;
 
   std::cout << "n_rep = " << n_rep 
             << " n_large_cells = " << n_large_cells
@@ -282,8 +285,11 @@ int main(){
     opts_init.sstp_coal = sstp_coal; 
     opts_init.sstp_cond = 1; 
 //    opts_init.kernel = kernel_t::hall_pinsky_1000mb_grav;
-//    opts_init.kernel = kernel_t::hall;
+#ifdef HallDavis
     opts_init.kernel = kernel_t::hall_davis_no_waals;
+#else
+    opts_init.kernel = kernel_t::hall;
+#endif
 //    opts_init.kernel = kernel_t::Long;
   //  opts_init.kernel = kernel_t::geometric;
 
