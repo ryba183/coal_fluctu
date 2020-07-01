@@ -125,9 +125,10 @@ void two_step(particles_proto_t<real_t> *prtcls,
              arrinfo_t<real_t> th,
      //        arrinfo_t<real_t> rhod,
              arrinfo_t<real_t> rv,
+             arrinfo_t<real_t> diss_rate,
              opts_t<real_t> opts)
 {
-    prtcls->step_sync(opts,th,rv);//,rhod);
+    prtcls->step_sync(opts,th,rv,arrinfo_t<real_t>(),arrinfo_t<real_t>(),arrinfo_t<real_t>(),arrinfo_t<real_t>(), diss_rate);
     prtcls->step_async(opts);
 }
 
@@ -235,6 +236,7 @@ int main(){
 //  t10.fill(0.);
   for(int i=0; i<n_cell*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
 
+
   std::vector<std::array<real_t, HIST_BINS>> res_bins_pre(n_rep);
   std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_pre(n_rep);
 //  auto res_bins_pre = new real_t[n_rep][HIST_BINS];
@@ -303,6 +305,9 @@ int main(){
     opts_init.sedi_switch=0;
     opts_init.src_switch=0;
     opts_init.chem_switch=0;
+    opts_init.turb_adve_switch=1;
+
+    opts_init.periodic_topbot_walls = 1;
   
     opts_init.nx = nx; 
     opts_init.ny = ny; 
@@ -345,6 +350,9 @@ int main(){
       }
     );
 #endif
+
+//    std::vector<real_t> mix_len(nz, dz);
+    opts_init.SGS_mix_len = std::vector<real_t>(nz,dz);
   
     std::unique_ptr<particles_proto_t<real_t>> prtcls(
       factory<real_t>(
@@ -359,16 +367,19 @@ int main(){
     std::array<real_t, 1> pth;
     std::array<real_t, 1> prhod;
     std::array<real_t, 1> prv;
+    std::array<real_t, 1> pdiss_rate;
   
     pth.fill(300.);
     prhod.fill(rho_stp_f);
     prv.fill(.01);
+    pdiss_rate.fill(1 * 1e-4); // 1e-4 to turn cm^2/s^3 to m^2/s^3
   
     long int strides[] = {/*sizeof(real_t)*/ 0, 0, 0};
   
     arrinfo_t<real_t> th(pth.data(), strides);
     arrinfo_t<real_t> rhod(prhod.data(), strides);
     arrinfo_t<real_t> rv(prv.data(), strides);
+    arrinfo_t<real_t> diss_rate(pdiss_rate.data(), strides);
   
     prtcls->init(th,rv,rhod);
   
@@ -378,6 +389,7 @@ int main(){
     opts.cond = 0;
     opts.coal = 1;
     opts.rcyc = 1;
+    opts.turb_adve = 1;
   
     std::fill(res_bins_pre[rep].begin(), res_bins_pre[rep].end(), 0.);
     std::fill(res_bins_post[rep].begin(), res_bins_post[rep].end(), 0.);
@@ -426,7 +438,7 @@ int main(){
   
     for(int i=1; i<=sim_time; ++i)
     {
-      two_step(prtcls.get(),th,rv,opts);
+      two_step(prtcls.get(),th,rv,diss_rate,opts);
       // get max rw
       prtcls->diag_max_rw();
       arr = prtcls->outbuf();
