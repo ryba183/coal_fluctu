@@ -24,8 +24,8 @@
 
 #define HIST_BINS 5001
 #define BACKEND CUDA
-#define N_SD_MAX 1e8 //1e8
-#define NXNYNZ 100
+#define N_SD_MAX 2e8 //1e8
+#define NXNYNZ 200
 
 using namespace std;
 using namespace libcloudphxx::lgrngn;
@@ -54,7 +54,7 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, real_
 //globals
 std::array<real_t, HIST_BINS> rad_bins;
 real_t rho_stp_f;
-const int n_rep = 2e0; // number of repetitions of simulation
+const int n_rep = 1e0; // number of repetitions of simulation
 const int sim_time=3000; //2500;//500;//2500; // 2500 steps
 const int nx = NXNYNZ; // total number of collision cells
 const int ny = NXNYNZ;
@@ -256,18 +256,16 @@ int main(){
   std::vector<real_t> init_rain_mass(n_cell);
   real_t init_tot_cloud_mass;
   real_t init_tot_rain_mass;
-  auto t10 = new real_t[n_cell * n_rep];
-  auto t10_tot = new real_t[n_rep];
-  real_t t_max_40[n_cell * n_rep];// = new real_t[n_cell * n_rep];
+
+  std::vector<real_t> t10(n_cell * n_rep, 0);
+  std::vector<real_t> t10_tot(n_rep, 0);
+  std::vector<real_t> t_max_40(n_cell * n_rep, 0);// = new real_t[n_cell * n_rep];
   //std::array<std::array<real_t, n_cell * n_rep>, sim_time> real_t tau; // ratio of rain mass to LWC
-  auto tau = new real_t[sim_time+1][n_cell*n_rep]; // ratio of rain mass to LWC
-  auto nrain = new real_t[sim_time+1][n_cell*n_rep]; // number of rain drops
   //std::array<std::array<real_t, n_cell * n_rep>, sim_time> max_rw; // max wet radius in cell
-  auto max_rw = new real_t[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
-  auto max_rw_small = new real_t[sim_time+1][n_rep * n_cell]; // max rw^3 per small cells (to compare with Alfonso)
-//  t10.fill(0.);
-  for(int i=0; i<n_cell*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
-  for(int i=0; i<n_rep; ++i) {t10_tot[i]=0.;}
+  std::vector<std::vector<real_t>> tau           (sim_time+1, std::vector<real_t>(n_cell*n_rep)); // ratio of rain mass to LWC
+  std::vector<std::vector<real_t>> nrain         (sim_time+1, std::vector<real_t>(n_cell*n_rep)); // number of rain drops
+  std::vector<std::vector<real_t>> max_rw        (sim_time+1, std::vector<real_t>(n_rep * n_large_cells)); // max rw per large (averaging) cell
+  std::vector<std::vector<real_t>> max_rw_small  (sim_time+1, std::vector<real_t>(n_rep * n_cell)); // max rw^3 per small cells (to compare with Alfonso)
 
   std::vector<std::array<real_t, HIST_BINS>> res_bins_pre(n_rep);
   std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_pre(n_rep);
@@ -355,8 +353,7 @@ int main(){
     );
 #endif
 
-//    std::vector<real_t> mix_len(nz, dz);
-    opts_init.SGS_mix_len = std::vector<real_t>(nz,dz);
+    opts_init.SGS_mix_len = std::vector<real_t>(nz,opts_init.z1);  // mixing length equal to domain size, because we consider the whole domain to be a single LES cell in which flow is not resolved
   
     std::unique_ptr<particles_proto_t<real_t>> prtcls(
       factory<real_t>(
