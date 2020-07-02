@@ -24,7 +24,7 @@
 
 #define HIST_BINS 5001
 #define BACKEND CUDA
-#define N_SD_MAX 1e8 //1e8
+#define N_SD_MAX 2e8 //1e8
 #define NXNYNZ 100
 
 using namespace std;
@@ -54,7 +54,7 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, real_
 //globals
 std::array<real_t, HIST_BINS> rad_bins;
 real_t rho_stp_f;
-const int n_rep = 2e0; // number of repetitions of simulation
+const int n_rep = 1e0; // number of repetitions of simulation
 const int sim_time=3000; //2500;//500;//2500; // 2500 steps
 const int nx = NXNYNZ; // total number of collision cells
 const int ny = NXNYNZ;
@@ -355,8 +355,7 @@ int main(){
     );
 #endif
 
-//    std::vector<real_t> mix_len(nz, dz);
-    opts_init.SGS_mix_len = std::vector<real_t>(nz,dz);
+    opts_init.SGS_mix_len = std::vector<real_t>(nz, opts_init.z1); // z1 because the whole domain is like a LES cell in which flow is not resolved
   
     std::unique_ptr<particles_proto_t<real_t>> prtcls(
       factory<real_t>(
