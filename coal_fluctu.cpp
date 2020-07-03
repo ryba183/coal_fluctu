@@ -54,15 +54,15 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, real_
 //globals
 std::array<real_t, HIST_BINS> rad_bins;
 real_t rho_stp_f;
-const int n_rep = 1e0; // number of repetitions of simulation
-const int sim_time=3000; //2500;//500;//2500; // 2500 steps
+const int n_rep = 1e1; // number of repetitions of simulation
+const int sim_time=300; //2500;//500;//2500; // 2500 steps
 const int nx = NXNYNZ; // total number of collision cells
 const int ny = NXNYNZ;
 const int nz = NXNYNZ;
 const int n_cell = nx * ny * nz;
 
-const real_t dt = 0.1;
-const real_t Np = 1; // number of droplets per simulation (collision cell)
+const real_t dt = 1;
+const real_t Np = 1e0; // number of droplets per simulation (collision cell)
 const real_t Np_in_avg_r_max_cell = Np; // number of droplets per large cells in which we look for r_max
 //#ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -306,7 +306,7 @@ int main(){
     opts_init.dz = dz; 
   //  cell_vol = opts_init.dx * opts_init.dy * opts_init.dz;
   
-    opts_init.sedi_switch=0;
+    opts_init.sedi_switch=1;
     opts_init.src_switch=0;
     opts_init.chem_switch=0;
     opts_init.turb_adve_switch=1;
@@ -388,7 +388,7 @@ int main(){
   
     opts_t<real_t> opts;
     opts.adve = 0;
-    opts.sedi = 0;
+    opts.sedi = 1;
     opts.cond = 0;
     opts.coal = 1;
     opts.rcyc = 1;
