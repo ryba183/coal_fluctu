@@ -25,13 +25,13 @@
 #define HIST_BINS 5001
 #define BACKEND CUDA
 #define N_SD_MAX 2e8 //1e8
-#define NXNYNZ 1
+#define NXNYNZ 200
 // number of cells in each direction
 #define SEDI 0
 #define N_REP 1e0
 #define SIMTIME 300
 // [s]
-#define NP 1e6
+#define NP 1e0
 // init number of droplets per cell
 #define DT 1
 // [s]
@@ -256,6 +256,7 @@ int main(){
             << " tail = " << tail
             << " mean_rd1 = " << mean_rd1
             << " n1_stp = " << n1_stp
+            << " sedi = " << SEDI
             << std::endl;
 
   std::cout << std::flush;
@@ -611,7 +612,8 @@ int main(){
 //    // 12 - skew max rw large 13 - kurt max rw large 14 - mean tau(rain_mass/tot_mass) 
 //    // 15 - std_dev tau 16 - mean_nrain
 //    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << " " << mean_tau << " " << std_dev_tau << " " << mean_nrain << std::endl; 
-  }
+  } // end of the simulation loop
+
 //
 //  // cailc how much the radius of the lucky fraction of small cells increased!!
 ////all
