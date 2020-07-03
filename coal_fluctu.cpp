@@ -256,18 +256,16 @@ int main(){
   std::vector<real_t> init_rain_mass(n_cell);
   real_t init_tot_cloud_mass;
   real_t init_tot_rain_mass;
-  auto t10 = new real_t[n_cell * n_rep];
-  auto t10_tot = new real_t[n_rep];
-  real_t t_max_40[n_cell * n_rep];// = new real_t[n_cell * n_rep];
+
+  std::vector<real_t> t10(n_cell * n_rep, 0);
+  std::vector<real_t> t10_tot(n_rep, 0);
+  std::vector<real_t> t_max_40(n_cell * n_rep, 0);// = new real_t[n_cell * n_rep];
   //std::array<std::array<real_t, n_cell * n_rep>, sim_time> real_t tau; // ratio of rain mass to LWC
-  auto tau = new real_t[sim_time+1][n_cell*n_rep]; // ratio of rain mass to LWC
-  auto nrain = new real_t[sim_time+1][n_cell*n_rep]; // number of rain drops
   //std::array<std::array<real_t, n_cell * n_rep>, sim_time> max_rw; // max wet radius in cell
-  auto max_rw = new real_t[sim_time+1][n_rep * n_large_cells]; // max rw per large (averaging) cell
-  auto max_rw_small = new real_t[sim_time+1][n_rep * n_cell]; // max rw^3 per small cells (to compare with Alfonso)
-//  t10.fill(0.);
-  for(int i=0; i<n_cell*n_rep; ++i) {t10[i]=0.; t_max_40[i]=0.;}
-  for(int i=0; i<n_rep; ++i) {t10_tot[i]=0.;}
+  std::vector<std::vector<real_t>> tau           (sim_time+1, std::vector<real_t>(n_cell*n_rep)); // ratio of rain mass to LWC
+  std::vector<std::vector<real_t>> nrain         (sim_time+1, std::vector<real_t>(n_cell*n_rep)); // number of rain drops
+  std::vector<std::vector<real_t>> max_rw        (sim_time+1, std::vector<real_t>(n_rep * n_large_cells)); // max rw per large (averaging) cell
+  std::vector<std::vector<real_t>> max_rw_small  (sim_time+1, std::vector<real_t>(n_rep * n_cell)); // max rw^3 per small cells (to compare with Alfonso)
 
   std::vector<std::array<real_t, HIST_BINS>> res_bins_pre(n_rep);
   std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_pre(n_rep);
