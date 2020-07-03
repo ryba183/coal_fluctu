@@ -25,12 +25,14 @@
 #define HIST_BINS 5001
 #define BACKEND CUDA
 #define N_SD_MAX 2e8 //1e8
-#define NXNYNZ 100
+#define NXNYNZ 1
+// number of cells in each direction
 #define SEDI 0
 #define N_REP 1e0
 #define SIMTIME 300
 // [s]
-#define NP 1e0
+#define NP 1e6
+// init number of droplets per cell
 #define DT 1
 // [s]
 #define DISS_RATE 1
@@ -266,15 +268,13 @@ int main(){
   real_t init_tot_cloud_mass;
   real_t init_tot_rain_mass;
 
-  std::vector<real_t> t10(n_cell * n_rep, 0);
+//  std::vector<real_t> t10(n_cell * n_rep, 0);
   std::vector<real_t> t10_tot(n_rep, 0);
-  std::vector<real_t> t_max_40(n_cell * n_rep, 0);// = new real_t[n_cell * n_rep];
-  //std::array<std::array<real_t, n_cell * n_rep>, sim_time> real_t tau; // ratio of rain mass to LWC
-  //std::array<std::array<real_t, n_cell * n_rep>, sim_time> max_rw; // max wet radius in cell
-  std::vector<std::vector<real_t>> tau           (sim_time+1, std::vector<real_t>(n_cell*n_rep)); // ratio of rain mass to LWC
-  std::vector<std::vector<real_t>> nrain         (sim_time+1, std::vector<real_t>(n_cell*n_rep)); // number of rain drops
-  std::vector<std::vector<real_t>> max_rw        (sim_time+1, std::vector<real_t>(n_rep * n_large_cells)); // max rw per large (averaging) cell
-  std::vector<std::vector<real_t>> max_rw_small  (sim_time+1, std::vector<real_t>(n_rep * n_cell)); // max rw^3 per small cells (to compare with Alfonso)
+//  std::vector<real_t> t_max_40(n_cell * n_rep, 0);// = new real_t[n_cell * n_rep];
+//  std::vector<std::vector<real_t>> tau           (sim_time+1, std::vector<real_t>(n_cell*n_rep)); // ratio of rain mass to LWC
+//  std::vector<std::vector<real_t>> nrain         (sim_time+1, std::vector<real_t>(n_cell*n_rep)); // number of rain drops
+//  std::vector<std::vector<real_t>> max_rw        (sim_time+1, std::vector<real_t>(n_rep * n_large_cells)); // max rw per large (averaging) cell
+//  std::vector<std::vector<real_t>> max_rw_small  (sim_time+1, std::vector<real_t>(n_rep * n_cell)); // max rw^3 per small cells (to compare with Alfonso)
 
   std::vector<std::array<real_t, HIST_BINS>> res_bins_pre(n_rep);
   std::vector<std::array<real_t, HIST_BINS>> res_stddev_bins_pre(n_rep);
@@ -436,46 +436,46 @@ int main(){
     prtcls->diag_max_rw();
     arr = prtcls->outbuf();
     int large_cell_idx = -1;
-    for(int j=0; j<n_cell; ++j)
-    {
-//      real_t large_cell_max_rw;
-      if(j % n_cells_per_avg_r_max_cell == 0)
-      {
-  //      large_cell_max_rw = 0.;
-        large_cell_idx++;
-        max_rw[0][large_cell_idx + rep * n_large_cells] = 0.;//large_cell_max_rw;
-      }
-      if(arr[j] > rep_max_rw) rep_max_rw = arr[j];
-      if(arr[j] > max_rw[0][large_cell_idx + rep * n_large_cells])
-        max_rw[0][large_cell_idx + rep * n_large_cells] = arr[j];
-      max_rw_small[0][j + rep * n_cell] = arr[j];
-    }
+//    for(int j=0; j<n_cell; ++j)
+//    {
+////      real_t large_cell_max_rw;
+//      if(j % n_cells_per_avg_r_max_cell == 0)
+//      {
+//  //      large_cell_max_rw = 0.;
+//        large_cell_idx++;
+//        max_rw[0][large_cell_idx + rep * n_large_cells] = 0.;//large_cell_max_rw;
+//      }
+//      if(arr[j] > rep_max_rw) rep_max_rw = arr[j];
+//      if(arr[j] > max_rw[0][large_cell_idx + rep * n_large_cells])
+//        max_rw[0][large_cell_idx + rep * n_large_cells] = arr[j];
+//      max_rw_small[0][j + rep * n_cell] = arr[j];
+//    }
   
     for(int i=1; i<=sim_time; ++i)
     {
       two_step(prtcls.get(),th,rv,diss_rate,opts);
       // get max rw
-      prtcls->diag_max_rw();
-      arr = prtcls->outbuf();
-      int large_cell_idx = -1;
-      for(int j=0; j<n_cell; ++j)
-      {
-  //      real_t large_cell_max_rw;
-        if(j % n_cells_per_avg_r_max_cell == 0)
-        {
-    //      large_cell_max_rw = 0.;
-          large_cell_idx++;
-          max_rw[i][large_cell_idx + rep * n_large_cells] = 0.;//large_cell_max_rw;
-        }
-        if(arr[j] > rep_max_rw) rep_max_rw = arr[j];
-        if(arr[j] > max_rw[i][large_cell_idx + rep * n_large_cells])
-          max_rw[i][large_cell_idx + rep * n_large_cells] = arr[j];
-        max_rw_small[i][j + rep * n_cell] = arr[j];
-
-        // get time for max_rw to reach 40um
-        if(t_max_40[j + rep * n_cell] == 0. && arr[j] >= 40e-6)
-          t_max_40[j + rep * n_cell] = i * opts_init.dt; 
-      }
+//      prtcls->diag_max_rw();
+//      arr = prtcls->outbuf();
+//      int large_cell_idx = -1;
+//      for(int j=0; j<n_cell; ++j)
+//      {
+//  //      real_t large_cell_max_rw;
+//        if(j % n_cells_per_avg_r_max_cell == 0)
+//        {
+//    //      large_cell_max_rw = 0.;
+//          large_cell_idx++;
+//          max_rw[i][large_cell_idx + rep * n_large_cells] = 0.;//large_cell_max_rw;
+//        }
+//        if(arr[j] > rep_max_rw) rep_max_rw = arr[j];
+//        if(arr[j] > max_rw[i][large_cell_idx + rep * n_large_cells])
+//          max_rw[i][large_cell_idx + rep * n_large_cells] = arr[j];
+//        max_rw_small[i][j + rep * n_cell] = arr[j];
+//
+//        // get time for max_rw to reach 40um
+//        if(t_max_40[j + rep * n_cell] == 0. && arr[j] >= 40e-6)
+//          t_max_40[j + rep * n_cell] = i * opts_init.dt; 
+//      }
 
       // get mean_sd_conc
       prtcls->diag_all();
@@ -498,26 +498,26 @@ int main(){
       real_t cloud_mass_tot = 0;
       for(int j=0; j<n_cell; ++j)
       {
-        if(t10[j + rep * n_cell] == 0. && arr[j] >= init_cloud_mass[j] * .1)
-          t10[j + rep * n_cell] = i * opts_init.dt;
-        tau[i][j + rep * n_cell] = arr[j];// / init_cloud_mass[j];
+//        if(t10[j + rep * n_cell] == 0. && arr[j] >= init_cloud_mass[j] * .1)
+//          t10[j + rep * n_cell] = i * opts_init.dt;
+//        tau[i][j + rep * n_cell] = arr[j];// / init_cloud_mass[j];
         cloud_mass_tot += arr[j];
       }
       if(t10_tot[rep] == 0. && cloud_mass_tot >= init_tot_cloud_mass * .1)
         t10_tot[rep] =  i * opts_init.dt;
 
-      prtcls->diag_wet_mom(0);
-      arr = prtcls->outbuf();
-      for(int j=0; j<n_cell; ++j)
-      {
-        nrain[i][j + rep * n_cell] = arr[j];
-      }
-
-      prtcls->diag_wet_rng(0, 1); 
-      prtcls->diag_wet_mom(3);
-      arr = prtcls->outbuf();
-      for(int j=0; j<n_cell; ++j)
-        if(arr[j] > 0) tau[i][j + rep * n_cell] /= arr[j]; // to avoid (small) variability in LWC?
+//      prtcls->diag_wet_mom(0);
+//      arr = prtcls->outbuf();
+//      for(int j=0; j<n_cell; ++j)
+//      {
+//        nrain[i][j + rep * n_cell] = arr[j];
+//      }
+//
+//      prtcls->diag_wet_rng(0, 1); 
+//      prtcls->diag_wet_mom(3);
+//      arr = prtcls->outbuf();
+//      for(int j=0; j<n_cell; ++j)
+//        if(arr[j] > 0) tau[i][j + rep * n_cell] /= arr[j]; // to avoid (small) variability in LWC?
     }
   
     std::cout << std::endl << "po symulacji, max_rw: " << rep_max_rw << std::endl;
@@ -530,17 +530,17 @@ int main(){
 
 
   // find history in which max_rw grew the most 
-    real_t max_growth=0.;
-    int max_growth_idx;
-    for(int j=0; j < n_cell * n_rep; ++j)
-    {
-      real_t max_rw_local_growth = max_rw_small[sim_time][j] - max_rw_small[0][j];
-      if(max_rw_local_growth > max_growth)
-      {
-        max_growth = max_rw_local_growth;
-        max_growth_idx = j;
-      }
-    }
+//    real_t max_growth=0.;
+//    int max_growth_idx;
+//    for(int j=0; j < n_cell * n_rep; ++j)
+//    {
+//      real_t max_rw_local_growth = max_rw_small[sim_time][j] - max_rw_small[0][j];
+//      if(max_rw_local_growth > max_growth)
+//      {
+//        max_growth = max_rw_local_growth;
+//        max_growth_idx = j;
+//      }
+//    }
 
   real_t mean_max_rad_small = 0.;
   // calc and print max rw (and mass) stats
@@ -560,201 +560,201 @@ int main(){
     real_t skew_max_rad_large = 0.;
     real_t kurt_max_rad_large = 0.;
 
-    for(int j=0; j < n_large_cells * n_rep; ++j)
-    {
-      mean_max_rad += max_rw[i][j];
-      if(max_rw[i][j] > glob_max_rad) glob_max_rad = max_rw[i][j];
-    }
-    for(int j=0; j < n_cell * n_rep; ++j)
-    {
-      mean_max_vol_small += pow(max_rw_small[i][j], 3.);
-      mean_max_rad_small += max_rw_small[i][j];
-      mean_tau += tau[i][j];
-      mean_nrain += nrain[i][j];
-    }
-
-
-    mean_max_rad /= real_t(n_large_cells * n_rep);
-    mean_max_rad_small /= real_t(n_cell * n_rep);
-    mean_max_vol_small /= real_t(n_cell * n_rep);
-    mean_tau /= real_t(n_cell * n_rep);
-    mean_nrain /= real_t(n_cell * n_rep);
-
-
-    for(int j=0; j < n_large_cells * n_rep; ++j)
-    {
-      std_dev_max_rad += std::pow(max_rw[i][j] - mean_max_rad, 2);
-      skew_max_rad_large += std::pow(max_rw[i][j] - mean_max_rad, 3); 
-      kurt_max_rad_large += std::pow(max_rw[i][j] - mean_max_rad, 4); 
-    }
-    for(int j=0; j < n_cell * n_rep; ++j)
-    {
-      std_dev_max_vol_small += std::pow(pow(max_rw_small[i][j], 3.) / mean_max_vol_small - 1, 2); // relative std dev of mass of largest one
-      std_dev_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 2); 
-      std_dev_tau += std::pow(tau[i][j] - mean_tau, 2); 
-      skew_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 3); 
-      kurt_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 4); 
-    }
-
-    kurt_max_rad_small = kurt_max_rad_small / (n_cell * n_rep) / pow(std_dev_max_rad_small / (n_cell * n_rep), 2.);
-    std_dev_max_vol_small = std::sqrt(std_dev_max_vol_small / (n_cell * n_rep-1));
-    std_dev_max_rad_small = std::sqrt(std_dev_max_rad_small / (n_cell * n_rep-1));
-    std_dev_tau = std::sqrt(std_dev_tau / (n_cell * n_rep-1));
-    skew_max_rad_small = skew_max_rad_small / (n_cell * n_rep) / pow(std_dev_max_rad_small, 3.);
-
-    kurt_max_rad_large = kurt_max_rad_large / (n_large_cells * n_rep) / pow(std_dev_max_rad / (n_large_cells * n_rep), 2.);
-    std_dev_max_rad = std::sqrt(std_dev_max_rad / (n_large_cells * n_rep-1));
-    skew_max_rad_large = skew_max_rad_large / (n_large_cells * n_rep) / pow(std_dev_max_rad, 3.);
-    
-    // 1 - time 2,3 - mean_max_vol_small 4,5 - mean_max_rad(large) 6 - glob max rad 7 - max growth rw
-    // 8 - mean max rw small 9 - std dev max rw small 10 - skew max rw small 11 - kurt max rw small
-    // 12 - skew max rw large 13 - kurt max rw large 14 - mean tau(rain_mass/tot_mass) 
-    // 15 - std_dev tau 16 - mean_nrain
-    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << " " << mean_tau << " " << std_dev_tau << " " << mean_nrain << std::endl; 
+//    for(int j=0; j < n_large_cells * n_rep; ++j)
+//    {
+//      mean_max_rad += max_rw[i][j];
+//      if(max_rw[i][j] > glob_max_rad) glob_max_rad = max_rw[i][j];
+//    }
+//    for(int j=0; j < n_cell * n_rep; ++j)
+//    {
+//      mean_max_vol_small += pow(max_rw_small[i][j], 3.);
+//      mean_max_rad_small += max_rw_small[i][j];
+//      mean_tau += tau[i][j];
+//      mean_nrain += nrain[i][j];
+//    }
+//
+//
+//    mean_max_rad /= real_t(n_large_cells * n_rep);
+//    mean_max_rad_small /= real_t(n_cell * n_rep);
+//    mean_max_vol_small /= real_t(n_cell * n_rep);
+//    mean_tau /= real_t(n_cell * n_rep);
+//    mean_nrain /= real_t(n_cell * n_rep);
+//
+//
+//    for(int j=0; j < n_large_cells * n_rep; ++j)
+//    {
+//      std_dev_max_rad += std::pow(max_rw[i][j] - mean_max_rad, 2);
+//      skew_max_rad_large += std::pow(max_rw[i][j] - mean_max_rad, 3); 
+//      kurt_max_rad_large += std::pow(max_rw[i][j] - mean_max_rad, 4); 
+//    }
+//    for(int j=0; j < n_cell * n_rep; ++j)
+//    {
+//      std_dev_max_vol_small += std::pow(pow(max_rw_small[i][j], 3.) / mean_max_vol_small - 1, 2); // relative std dev of mass of largest one
+//      std_dev_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 2); 
+//      std_dev_tau += std::pow(tau[i][j] - mean_tau, 2); 
+//      skew_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 3); 
+//      kurt_max_rad_small += std::pow(max_rw_small[i][j] - mean_max_rad_small, 4); 
+//    }
+//
+//    kurt_max_rad_small = kurt_max_rad_small / (n_cell * n_rep) / pow(std_dev_max_rad_small / (n_cell * n_rep), 2.);
+//    std_dev_max_vol_small = std::sqrt(std_dev_max_vol_small / (n_cell * n_rep-1));
+//    std_dev_max_rad_small = std::sqrt(std_dev_max_rad_small / (n_cell * n_rep-1));
+//    std_dev_tau = std::sqrt(std_dev_tau / (n_cell * n_rep-1));
+//    skew_max_rad_small = skew_max_rad_small / (n_cell * n_rep) / pow(std_dev_max_rad_small, 3.);
+//
+//    kurt_max_rad_large = kurt_max_rad_large / (n_large_cells * n_rep) / pow(std_dev_max_rad / (n_large_cells * n_rep), 2.);
+//    std_dev_max_rad = std::sqrt(std_dev_max_rad / (n_large_cells * n_rep-1));
+//    skew_max_rad_large = skew_max_rad_large / (n_large_cells * n_rep) / pow(std_dev_max_rad, 3.);
+//    
+//    // 1 - time 2,3 - mean_max_vol_small 4,5 - mean_max_rad(large) 6 - glob max rad 7 - max growth rw
+//    // 8 - mean max rw small 9 - std dev max rw small 10 - skew max rw small 11 - kurt max rw small
+//    // 12 - skew max rw large 13 - kurt max rw large 14 - mean tau(rain_mass/tot_mass) 
+//    // 15 - std_dev tau 16 - mean_nrain
+//    of_max_drop_vol << i * dt << " " << mean_max_vol_small << " " << std_dev_max_vol_small << " " << mean_max_rad << " " << std_dev_max_rad << " " << glob_max_rad << " " << max_rw_small[i][max_growth_idx] << " " << mean_max_rad_small << " " << std_dev_max_rad_small << " " << skew_max_rad_small << " " << kurt_max_rad_small << " " << skew_max_rad_large << " " << kurt_max_rad_large << " " << mean_tau << " " << std_dev_tau << " " << mean_nrain << std::endl; 
   }
-
-  // cailc how much the radius of the lucky fraction of small cells increased!!
-//all
-  {
-    real_t ensf = n_cell * n_rep;
-    int ens = int(ensf);
-    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    std::sort(std::begin(t_max_40), std::end(t_max_40), std::less<real_t>());
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
-    cout << "first nonzero - begin: " << first_nonzero - begin(t_max_40) << endl;
-    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) 
-      cout << "too short simulation, too small mean sample!" << endl;
-    //else
-    ens = end(t_max_40) - first_nonzero;
-    {
-      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
-      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
-      cout << "mean time to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
-    }
-  }
-//1e-1
-  {
-    real_t ensf = nx * n_rep / 1e1;
-    int ens = int(ensf);
-    std::sort(std::begin(max_rw_small[sim_time]), std::end(max_rw_small[sim_time]), std::greater<real_t>());
-    real_t lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / real_t(ens);
-    cout << "ratoi of lucky 1e-1 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
-
-    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
-    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-1 sample!" << endl;
-    else
-    {
-      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
-      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
-      cout << "time for the luckiest 1e-1 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
-    }
-  }
-//1e-2
-  {
-    real_t ensf = nx * n_rep / 1e2;
-    int ens = int(ensf);
-    real_t lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / real_t(ens);
-    cout << "ratoi of lucky 1e-2 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
-
-    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
-    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-2 sample!" << endl;
-    else {
-      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
-      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
-      cout << "time for the luckiest 1e-2 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
-    }
-  }
-//1e-3
-  {
-    // cailc how much the radius of the lucky fraction of small cells increased!!
-    real_t ensf = nx * n_rep / 1e3;
-    int ens = int(ensf);
-    real_t lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / real_t(ens);
-    cout << "ratoi of lucky 1e-3 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
-
-    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
-    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-3 sample!" << endl;
-    else{
-      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
-      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
-      cout << "time for the luckiest 1e-3 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
-    }
-  }
-//1e-4
-  {
-    // cailc how much the radius of the lucky fraction of small cells increased!!
-    real_t ensf = nx * n_rep / 1e4;
-    int ens = int(ensf);
-    real_t lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / real_t(ens);
-    cout << "ratoi of lucky 1e-4 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
-
-    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
-    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
-    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-4 sample!" << endl;
-    else {
-      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
-      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
-      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
-      cout << "time for the luckiest 1e-4 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
-    }
-  }
-  // calc and print out mean t10 and t10 std_dev
-  real_t mean_t10 = 0.;
-  int t10_sims = 0;
-  for(int j=0; j<n_cell * n_rep; ++j)
-  {
-    if(t10[j] != 0.)
-    {
-      ++t10_sims;
-      mean_t10 += t10[j];
-    }
-  }
-  std::cout << "no. of cells that didn't reach t10%: " << n_cell * n_rep - t10_sims << std::endl;
-  mean_t10/=t10_sims;//n_cell*n_rep;
-  real_t std_dev=0.;
-  for(int j=0; j<n_cell*n_rep; ++j)
-    std_dev += pow(t10[j] - mean_t10, 2);
-  std_dev /= (t10_sims-1);
-  std_dev = sqrt(std_dev);
-  std::cout << "mean(t10%) = " << mean_t10 << std::endl;
-  std::cout << "realtive std_dev(t10%) = " << std_dev / mean_t10 << std::endl;
-
-  real_t mean_t10_tot;
-  for(int j=0; j<n_rep; ++j)
-    mean_t10_tot += t10_tot[j];
-  mean_t10_tot /= n_rep;
-  std::cout << "mean(t10% in the domain) = " << mean_t10_tot << std::endl;
-
-  // calc and print out mean tau10 and tau10 std_dev
-  const int mean_t10_idx = mean_t10 / dt + 0.5;
-  real_t mean = 0.;
-  if(mean_t10 > 0.)
-  {
-    for(int j=0; j<n_cell*n_rep; ++j)
-    {
-      mean += tau[mean_t10_idx][j];
-    }
-  mean/=n_cell*n_rep;
-  std_dev=0.;
-  for(int j=0; j<n_cell*n_rep; ++j)
-    std_dev += pow(tau[mean_t10_idx][j] - mean, 2);
-  std_dev /= (n_cell*n_rep-1);
-  std_dev = sqrt(std_dev);
-  }
-  else 
-  {
-    mean = NAN;
-    std_dev = NAN;
-  }
-  std::cout << "mean(tau10%) = " << mean << std::endl;
-  std::cout << "realtive std_dev(tau10%) = " << std_dev / mean << std::endl;
+//
+//  // cailc how much the radius of the lucky fraction of small cells increased!!
+////all
+//  {
+//    real_t ensf = n_cell * n_rep;
+//    int ens = int(ensf);
+//    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
+//    std::sort(std::begin(t_max_40), std::end(t_max_40), std::less<real_t>());
+//    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
+//    cout << "first nonzero - begin: " << first_nonzero - begin(t_max_40) << endl;
+//    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) 
+//      cout << "too short simulation, too small mean sample!" << endl;
+//    //else
+//    ens = end(t_max_40) - first_nonzero;
+//    {
+//      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
+//      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+//      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+//      cout << "mean time to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+//    }
+//  }
+////1e-1
+//  {
+//    real_t ensf = nx * n_rep / 1e1;
+//    int ens = int(ensf);
+//    std::sort(std::begin(max_rw_small[sim_time]), std::end(max_rw_small[sim_time]), std::greater<real_t>());
+//    real_t lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / real_t(ens);
+//    cout << "ratoi of lucky 1e-1 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
+//
+//    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
+//    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
+//    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-1 sample!" << endl;
+//    else
+//    {
+//      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
+//      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+//      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+//      cout << "time for the luckiest 1e-1 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+//    }
+//  }
+////1e-2
+//  {
+//    real_t ensf = nx * n_rep / 1e2;
+//    int ens = int(ensf);
+//    real_t lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / real_t(ens);
+//    cout << "ratoi of lucky 1e-2 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
+//
+//    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
+//    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
+//    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-2 sample!" << endl;
+//    else {
+//      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
+//      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+//      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+//      cout << "time for the luckiest 1e-2 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+//    }
+//  }
+////1e-3
+//  {
+//    // cailc how much the radius of the lucky fraction of small cells increased!!
+//    real_t ensf = nx * n_rep / 1e3;
+//    int ens = int(ensf);
+//    real_t lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / real_t(ens);
+//    cout << "ratoi of lucky 1e-3 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
+//
+//    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
+//    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
+//    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-3 sample!" << endl;
+//    else{
+//      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
+//      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+//      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+//      cout << "time for the luckiest 1e-3 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+//    }
+//  }
+////1e-4
+//  {
+//    // cailc how much the radius of the lucky fraction of small cells increased!!
+//    real_t ensf = nx * n_rep / 1e4;
+//    int ens = int(ensf);
+//    real_t lucky_mean_rw = std::accumulate(std::begin(max_rw_small[sim_time]), std::begin(max_rw_small[sim_time]) + ens, 0.) / real_t(ens);
+//    cout << "ratoi of lucky 1e-4 fraction final radius to mean final radius: " << lucky_mean_rw / mean_max_rad_small << endl; 
+//
+//    // cailc how quickkly the lucky fraction of small cells reached r_max=40um
+//    auto first_nonzero = std::find_if( begin(t_max_40), end(t_max_40), [](real_t x) { return x != 0; });
+//    if(first_nonzero + ens - begin(t_max_40) > (end(t_max_40)-begin(t_max_40))) cout << "too short simulation, too small 1e-4 sample!" << endl;
+//    else {
+//      real_t lucky_mean_t_max_40 = std::accumulate(first_nonzero, first_nonzero + ens, 0.) / real_t(ens);
+//      real_t sq_sum = std::inner_product(first_nonzero, first_nonzero + ens, first_nonzero, 0.0);
+//      real_t stdev = std::sqrt(sq_sum / ens - lucky_mean_t_max_40 * lucky_mean_t_max_40);
+//      cout << "time for the luckiest 1e-4 to reach r=40um: " << lucky_mean_t_max_40 << "  std_dev: " << stdev << endl; 
+//    }
+//  }
+//  // calc and print out mean t10 and t10 std_dev
+//  real_t mean_t10 = 0.;
+//  int t10_sims = 0;
+//  for(int j=0; j<n_cell * n_rep; ++j)
+//  {
+//    if(t10[j] != 0.)
+//    {
+//      ++t10_sims;
+//      mean_t10 += t10[j];
+//    }
+//  }
+//  std::cout << "no. of cells that didn't reach t10%: " << n_cell * n_rep - t10_sims << std::endl;
+//  mean_t10/=t10_sims;//n_cell*n_rep;
+//  real_t std_dev=0.;
+//  for(int j=0; j<n_cell*n_rep; ++j)
+//    std_dev += pow(t10[j] - mean_t10, 2);
+//  std_dev /= (t10_sims-1);
+//  std_dev = sqrt(std_dev);
+//  std::cout << "mean(t10%) = " << mean_t10 << std::endl;
+//  std::cout << "realtive std_dev(t10%) = " << std_dev / mean_t10 << std::endl;
+//
+//  real_t mean_t10_tot;
+//  for(int j=0; j<n_rep; ++j)
+//    mean_t10_tot += t10_tot[j];
+//  mean_t10_tot /= n_rep;
+//  std::cout << "mean(t10% in the domain) = " << mean_t10_tot << std::endl;
+//
+//  // calc and print out mean tau10 and tau10 std_dev
+//  const int mean_t10_idx = mean_t10 / dt + 0.5;
+//  real_t mean = 0.;
+//  if(mean_t10 > 0.)
+//  {
+//    for(int j=0; j<n_cell*n_rep; ++j)
+//    {
+//      mean += tau[mean_t10_idx][j];
+//    }
+//  mean/=n_cell*n_rep;
+//  std_dev=0.;
+//  for(int j=0; j<n_cell*n_rep; ++j)
+//    std_dev += pow(tau[mean_t10_idx][j] - mean, 2);
+//  std_dev /= (n_cell*n_rep-1);
+//  std_dev = sqrt(std_dev);
+//  }
+//  else 
+//  {
+//    mean = NAN;
+//    std_dev = NAN;
+//  }
+//  std::cout << "mean(tau10%) = " << mean << std::endl;
+//  std::cout << "realtive std_dev(tau10%) = " << std_dev / mean << std::endl;
 
 // output
   for (int i=0; i <rad_bins.size() -1; ++i)
