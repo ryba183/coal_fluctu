@@ -26,6 +26,15 @@
 #define BACKEND CUDA
 #define N_SD_MAX 2e8 //1e8
 #define NXNYNZ 100
+#define SEDI 0
+#define N_REP 1e0
+#define SIMTIME 300
+// [s]
+#define NP 1e0
+#define DT 1
+// [s]
+#define DISS_RATE 1
+// [cm^2 / s^3]
 
 using namespace std;
 using namespace libcloudphxx::lgrngn;
@@ -54,15 +63,15 @@ const quantity<power_typeof_helper<si::length, static_rational<-3>>::type, real_
 //globals
 std::array<real_t, HIST_BINS> rad_bins;
 real_t rho_stp_f;
-const int n_rep = 1e1; // number of repetitions of simulation
-const int sim_time=300; //2500;//500;//2500; // 2500 steps
+const int n_rep = N_REP; // number of repetitions of simulation
+const int sim_time=SIMTIME; //2500;//500;//2500; // 2500 steps
 const int nx = NXNYNZ; // total number of collision cells
 const int ny = NXNYNZ;
 const int nz = NXNYNZ;
 const int n_cell = nx * ny * nz;
 
-const real_t dt = 1;
-const real_t Np = 1e0; // number of droplets per simulation (collision cell)
+const real_t dt = DT;
+const real_t Np = NP; // number of droplets per simulation (collision cell)
 const real_t Np_in_avg_r_max_cell = Np; // number of droplets per large cells in which we look for r_max
 //#ifdef Onishi
   const int n_cells_per_avg_r_max_cell = Np_in_avg_r_max_cell / Np;
@@ -373,7 +382,7 @@ int main(){
     pth.fill(300.);
     prhod.fill(rho_stp_f);
     prv.fill(.01);
-    pdiss_rate.fill(1 * 1e-4); // 1e-4 to turn cm^2/s^3 to m^2/s^3
+    pdiss_rate.fill(DISS_RATE * 1e-4); // 1e-4 to turn cm^2/s^3 to m^2/s^3
   
     long int strides[] = {/*sizeof(real_t)*/ 0, 0, 0};
   
@@ -386,7 +395,7 @@ int main(){
   
     opts_t<real_t> opts;
     opts.adve = 0;
-    opts.sedi = 1;
+    opts.sedi = SEDI;
     opts.cond = 0;
     opts.coal = 1;
     opts.rcyc = 1;
@@ -508,7 +517,7 @@ int main(){
       prtcls->diag_wet_mom(3);
       arr = prtcls->outbuf();
       for(int j=0; j<n_cell; ++j)
-        tau[i][j + rep * n_cell] /= arr[j]; // to avoid (small) variability in LWC?
+        if(arr[j] > 0) tau[i][j + rep * n_cell] /= arr[j]; // to avoid (small) variability in LWC?
     }
   
     std::cout << std::endl << "po symulacji, max_rw: " << rep_max_rw << std::endl;
