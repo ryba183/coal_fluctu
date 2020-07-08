@@ -27,7 +27,8 @@
 #define N_SD_MAX 2e8 //1e8
 #define NXNYNZ 200
 // number of cells in each direction
-#define SEDI 0
+#define SEDI 1
+#define RCYC 0
 #define N_REP 1e0
 #define SIMTIME 300
 // [s]
@@ -257,6 +258,8 @@ int main(){
             << " mean_rd1 = " << mean_rd1
             << " n1_stp = " << n1_stp
             << " sedi = " << SEDI
+            << " rcyc = " << RCYC
+            << " backend = " << BACKEND
             << std::endl;
 
   std::cout << std::flush;
@@ -399,7 +402,7 @@ int main(){
     opts.sedi = SEDI;
     opts.cond = 0;
     opts.coal = 1;
-    opts.rcyc = 1;
+    opts.rcyc = RCYC;
     opts.turb_adve = 1;
   
     std::fill(res_bins_pre[rep].begin(), res_bins_pre[rep].end(), 0.);
