@@ -23,9 +23,9 @@
 // #define HallDavis
 
 #define HIST_BINS 5001
-#define BACKEND CUDA
-#define N_SD_MAX 2e8 //1e8
-#define NXNYNZ 200
+#define BACKEND multi_CUDA
+#define N_SD_MAX 1e7 //1e8
+#define NXNYNZ 10
 // number of cells in each direction
 #define SEDI 1
 #define RCYC 0
@@ -71,7 +71,7 @@ const int sim_time=SIMTIME; //2500;//500;//2500; // 2500 steps
 const int nx = NXNYNZ; // total number of collision cells
 const int ny = NXNYNZ;
 const int nz = NXNYNZ;
-const int n_cell = nx * ny * nz;
+constexpr int n_cell = NXNYNZ * NXNYNZ * NXNYNZ;
 
 const real_t dt = DT;
 const real_t Np = NP; // number of droplets per simulation (collision cell)
@@ -378,23 +378,19 @@ int main(){
     using libcloudphxx::common::earth::rho_stp;
     rho_stp_f = (rho_stp<real_t>() / si::kilograms * si::cubic_metres);
   
-    std::array<real_t, 1> pth;
-    std::array<real_t, 1> prhod;
-    std::array<real_t, 1> prv;
-    std::array<real_t, 1> pdiss_rate;
+    std::vector<real_t> pth(n_cell, 300);
+    std::vector<real_t> prhod(n_cell, rho_stp_f);
+    std::vector<real_t> prv(n_cell, .01);
+    std::vector<real_t> pdiss_rate(n_cell, DISS_RATE * 1e-4); // 1e-4 to turn cm^2/s^3 to m^2/s^3
   
-    pth.fill(300.);
-    prhod.fill(rho_stp_f);
-    prv.fill(.01);
-    pdiss_rate.fill(DISS_RATE * 1e-4); // 1e-4 to turn cm^2/s^3 to m^2/s^3
-  
-    long int strides[] = {/*sizeof(real_t)*/ 0, 0, 0};
+    //long int strides[] = {sizeof(real_t) * NXNYNZ * NXNYNZ, sizeof(real_t) * NXNYNZ, sizeof(real_t)};
+    long int strides[] = {1 * NXNYNZ * NXNYNZ, 1 * NXNYNZ, 1};
   
     arrinfo_t<real_t> th(pth.data(), strides);
     arrinfo_t<real_t> rhod(prhod.data(), strides);
     arrinfo_t<real_t> rv(prv.data(), strides);
     arrinfo_t<real_t> diss_rate(pdiss_rate.data(), strides);
-  
+
     prtcls->init(th,rv,rhod);
   
     opts_t<real_t> opts;
