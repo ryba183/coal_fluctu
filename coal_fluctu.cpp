@@ -247,7 +247,6 @@ int main(){
             << " sim_time = " << sim_time
             << " dt = " << dt
             << " sstp_coal = " << sstp_coal
-            << " dev_id = " << dev_id
             << " const_multi = " << sd_const_multi
             << " sd_conc = " << sd_conc
             << " tail = " << tail
