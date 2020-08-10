@@ -20,17 +20,17 @@
 
 
  #define Onishi
-// #define cutoff
+ #define cutoff
 // #define HallDavis
 
 #define HIST_BINS 5001
 #define BACKEND multi_CUDA
-#define N_SD_MAX 1e7 //1e8
-#define NXNYNZ 4 // number of cells in each direction
+#define N_SD_MAX 4e8 //1e8
+#define NXNYNZ 720 // number of cells in each direction
 #define SEDI 1
 #define RCYC 0
 #define N_REP 1e0
-#define SIMTIME 300 // number of steps 
+#define SIMTIME 3000 // number of steps 
 #define NP 1e0 // init number of droplets per cell
 #define DT 0.1 // [s]
 #define DISS_RATE 1 // [cm^2 / s^3]
