@@ -20,7 +20,7 @@
 
 
  #define Onishi
- #define cutoff
+ #define cutoff 40e-6
 // #define HallDavis
 
 #define HIST_BINS 5001
@@ -30,7 +30,7 @@
 #define SEDI 1
 #define RCYC 0
 #define N_REP 1e0
-#define SIMTIME 3000 // number of steps 
+#define SIMTIME 4000 // number of steps 
 #define NP 1e0 // init number of droplets per cell
 #define DT 0.1 // [s]
 #define DISS_RATE 1 // [cm^2 / s^3]
@@ -116,7 +116,7 @@ struct exp_dry_radii : public libcloudphxx::common::unary_function<T>
   {   
     T r = exp(lnrd);
 #ifdef cutoff
-    if(r>= 20e-6) return 0.; else 
+    if(r>= cutoff) return 0.; else 
 #endif
 return (n1_stp * si::cubic_metres) * 3. * pow(r,3) / pow(mean_rd1 / si::metres, 3) * exp( - pow(r/(mean_rd1 / si::metres), 3));
   }   
@@ -227,8 +227,7 @@ int main(){
 #endif
 
 #ifdef cutoff
-  std::cout << "init distr cutoff at 20 microns!" << std::endl;
-  //std::cout << "init distr cutoff at 40 microns!" << std::endl;
+  std::cout << "init distr cutoff at " << cutoff << " microns!" << std::endl;
 #endif
 
 #ifdef Onishi
