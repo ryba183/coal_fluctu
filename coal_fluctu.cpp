@@ -25,8 +25,8 @@
 
 #define HIST_BINS 5001
 #define BACKEND multi_CUDA
-#define N_SD_MAX 1e8 //1e8
-#define NXNYNZ 720 // number of cells in each direction
+#define N_SD_MAX 1e8 //4e8
+#define NXNYNZ 200 //720 // number of cells in each direction
 #define SEDI 1
 #define RCYC 0
 #define N_REP 1e0
@@ -348,13 +348,13 @@ int main(){
 
 #ifdef Onishi
     opts_init.dry_distros.emplace(
-      0, //0 // key (kappa)
+      0.01, //0 // key (kappa)
       std::make_shared<exp_dry_radii<real_t>> () // value
     );
 
 #else
     opts_init.dry_sizes.emplace(
-      0, //0 // key (kappa)
+      0.01, //0 // key (kappa)
       std::map<real_t, std::pair<real_t, int> > {
         {17e-6  , {20e6, 20e6 * cell_vol}}, // radius, STP concentration, number of SD
         {21.4e-6, {10e6, 10e6 * cell_vol}}, // radius, STP concentration, number of SD
