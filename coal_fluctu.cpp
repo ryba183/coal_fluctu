@@ -25,7 +25,7 @@
 
 #define HIST_BINS 5001
 #define BACKEND multi_CUDA
-#define N_SD_MAX 4e8 //1e8
+#define N_SD_MAX 1e8 //1e8
 #define NXNYNZ 720 // number of cells in each direction
 #define SEDI 1
 #define RCYC 0
