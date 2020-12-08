@@ -25,11 +25,11 @@
 
 #define HIST_BINS 5001
 #define BACKEND multi_CUDA
-#define N_SD_MAX 1e8 //4e8
-#define NXNYNZ 200 //720 // number of cells in each direction
+#define N_SD_MAX 4e8 //4e8
+#define NXNYNZ 720 //720 // number of cells in each direction
 #define SEDI 1
 #define RCYC 0
-#define N_REP 1e0
+#define N_REP 1e1
 #define SIMTIME 4000 // number of steps 
 #define NP 1e0 // init number of droplets per cell
 #define DT 0.1 // [s]
@@ -258,8 +258,8 @@ int main(){
 
   std::cout << std::flush;
 
-  std::ofstream of_size_spectr("size_spectr.dat");
-  std::ofstream of_max_drop_vol("max_drop_vol.dat");
+  std::ofstream of_size_spectr("size_spectr_"+std::to_string(NXNYNZ)+".dat");
+  std::ofstream of_max_drop_vol("max_drop_vol_"+std::to_string(NXNYNZ)+".dat");
 
   std::vector<real_t> init_cloud_mass(n_cell);
   std::vector<real_t> init_rain_mass(n_cell);
